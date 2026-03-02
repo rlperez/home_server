@@ -6,9 +6,6 @@
     - debug:
         msg: "Running on {{ inventory_hostname }}"
 
-    - name: Ping target hosts
-      ping:
-
     - name: Install dnf5-plugin-automatic
       dnf5:
         name: dnf5-plugin-automatic
