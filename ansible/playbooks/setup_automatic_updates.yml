@@ -1,0 +1,29 @@
+---
+- name: Setup automatic updates
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  tasks:
+    - debug:
+        msg: "Running on {{ inventory_hostname }}"
+
+    - name: Ping target hosts
+      ping:
+
+    - name: Install dnf5-plugin-automatic
+      dnf5:
+        name: dnf5-plugin-automatic
+        state: present
+
+    - name: Copy and configure automatic.conf
+      template:
+        src: ../templates/setup_automatic_updates/automatic.conf.j2
+        dest: /etc/dnf/automatic.conf
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Enable and start dnf5-automatic.timer
+      systemd:
+        name: dnf5-automatic.timer
+        enabled: true
+        state: started
