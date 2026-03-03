@@ -4,3 +4,4 @@
   become: true
   roles:
     - automatic_updates
+    - hashicorp_repo
