@@ -1,0 +1,48 @@
+---
+- name: Install Podman
+  become: true
+  dnf5:
+    name: podman
+    state: present
+
+- name: Get {{podman.user.name}} UID
+  command: id -u {{podman.user.name}}
+  register: podman_uid
+  changed_when: false
+
+- name: Enable Podman socket for {{podman.user.name}}
+  become: true
+  become_user: "{{podman.user.name}}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{podman_uid.stdout}}"
+  command: systemctl --user disable --now podman.socket
+
+- name: Show Podman info
+  become: true
+  become_user: "{{podman.user.name}}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{podman_uid.stdout}}"
+  command: podman info
+
+- name: Run test container
+  become: true
+  become_user: "{{podman.user.name}}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{podman_uid.stdout}}"
+  command: podman run --name podman_test --rm docker.io/library/alpine echo hello
+
+- name: Stop test container
+  become: true
+  become_user: "{{podman.user.name}}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{podman_uid.stdout}}"
+  command: podman stop podman_test
+  ignore_errors: true
+
+- name: Remove test container
+  become: true
+  become_user: "{{podman.user.name}}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{podman_uid.stdout}}"
+  command: podman rm podman_test
+  ignore_errors: true

@@ -1,0 +1,13 @@
+---
+dependencies:
+  - role: setup_user
+    vars:
+      user_name: "{{podman.user.name}}"
+      user_comment: "{{podman.user.comment}}"
+      user_group: "{{podman.user.group}}"
+      user_append: "{{podman.user.append}}"
+      user_create_home: "{{podman.user.create_home}}"
+      user_system: "{{podman.user.system}}"
+      user_shell: "{{podman.user.shell}}"
+      user_subid_start: "{{podman.user.subid_start}}"
+      user_subid_range: "{{podman.user.subid_range}}"
