@@ -3,10 +3,5 @@ podman:
   user:
     name: nomad
     comment: Nomad User
-    group: podman
-    append: true
-    create_home: true
-    system: true
-    shell: /bin/bash
+    group: nomad
     subid_start: 296608
-    subid_range: 65536
