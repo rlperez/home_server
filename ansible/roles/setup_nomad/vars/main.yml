@@ -1,12 +1,12 @@
 ---
 podman:
   user:
-    name: podman
-    comment: Podman User
+    name: nomad
+    comment: Nomad User
     group: podman
     append: true
     create_home: true
     system: true
-    shell: /sbin/nologin
-    subid_start: 100000
+    shell: /bin/bash
+    subid_start: 296608
     subid_range: 65536
