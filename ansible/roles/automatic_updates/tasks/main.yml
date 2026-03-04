@@ -7,7 +7,7 @@
 
 - name: Copy and configure automatic.conf
   template:
-    src: ../templates/setup_automatic_updates/automatic.conf.j2
+    src: ../templates/automatic.conf.j2
     dest: /etc/dnf/automatic.conf
     mode: "0644"
     owner: root
