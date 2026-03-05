@@ -6,4 +6,6 @@
     - automatic_updates
     - hashicorp_repo
     - setup_podman
-    - setup_nomad
+    - setup_consul
+#    - setup_vault
+#    - setup_nomad
