@@ -36,6 +36,13 @@
     enabled: true
     state: started
     daemon_reload: yes
+    no_block: true
+
+- name: Wait for Consul API
+  wait_for:
+    host: "{{ansible_default_ipv4.address}}"
+    port: 8500
+    timeout: 60
 
 - name: Test Consul service
   command: consul members
@@ -46,10 +53,12 @@
   debug:
     var: consul_members.stdout_lines
 
-- name: Check that Consul UI is enabled
-  command: curl http://{{ ansible_host }}:8500/
+- name: Check that Consul UI is accessible
+  command: curl http://{{ansible_host}}:8500/v1/status/leader
   register: consul_response
   changed_when: false
+  retries: 5
+  delay: 2
 
 - name: Output of Consul UI response
   debug:
