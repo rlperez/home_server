@@ -5,22 +5,21 @@
     name: consul
     state: present
 
-- name: Get {{consul.user.name}} UID
-  command: id -u {{consul.user.name}}
+- name: Get {{ consul.user.name }} UID
+  command: id -u {{ consul.user.name }}
   register: consul_uid
   changed_when: false
 
-- name: Create a data directory if it does not exist
-  ansible.builtin.file:
-    path: /opt/consul
+- name: Create directories
+  file:
+    path: "{{ item }}"
     state: directory
+    owner: "{{ consul.user.name }}"
+    group: "{{ consul.user.name }}"
     mode: "0755"
-
-- name: Create a data directory if it does not exist
-  ansible.builtin.file:
-    path: /etc/consul.d
-    state: directory
-    mode: "0755"
+  loop:
+    - /etc/consul.d
+    - /opt/consul
 
 - name: Copy consul.hcl template
   template:
@@ -40,7 +39,7 @@
 
 - name: Wait for Consul API
   wait_for:
-    host: "{{ansible_default_ipv4.address}}"
+    host: "{{ ansible_default_ipv4.address }}"
     port: 8500
     timeout: 60
 
@@ -54,7 +53,7 @@
     var: consul_members.stdout_lines
 
 - name: Check that Consul UI is accessible
-  command: curl http://{{ansible_host}}:8500/v1/status/leader
+  command: curl http://{{ ansible_host }}:8500/v1/status/leader
   register: consul_response
   changed_when: false
   retries: 5

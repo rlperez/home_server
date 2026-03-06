@@ -4,9 +4,9 @@ data_dir   = "/opt/consul"
 server = true
 bootstrap_expect = 1
 
-bind_addr      = "{% raw %}{{ GetPrivateIP }}{% endraw %}"
-advertise_addr = "{% raw %}{{ GetPrivateIP }}{% endraw %}"
-client_addr = "0.0.0.0"
+bind_addr      = "127.0.0.1"
+advertise_addr = "127.0.0.1"
+client_addr    = "0.0.0.0"
 
 ui_config {
   enabled = true
@@ -16,4 +16,4 @@ connect {
   enabled = true
 }
 
-encrypt = "{{consul_encryption_key}}"
+encrypt = "{{ consul_encryption_key }}"
