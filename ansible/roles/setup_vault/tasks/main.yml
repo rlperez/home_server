@@ -14,8 +14,9 @@
   file:
     path: "{{ item }}"
     state: directory
-    owner: vault
-    group: vault
+    owner: "{{ vault.user.name }}"
+    group: "{{ vault.user.group }}"
+    mode: "0755"
   loop:
     - /etc/vault.d
     - /opt/vault/data
