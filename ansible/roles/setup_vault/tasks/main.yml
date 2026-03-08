@@ -1,0 +1,58 @@
+---
+- name: Install Vault
+  become: true
+  dnf5:
+    name: vault
+    state: present
+
+- name: Get {{ vault.user.name }} UID
+  command: id -u {{ vault.user.name }}
+  register: vault_uid
+  changed_when: false
+
+- name: Create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: vault
+    group: vault
+  loop:
+    - /etc/vault.d
+    - /opt/vault/data
+
+- name: Vault config
+  template:
+    src: ../templates/vault.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+
+- name: Enable and start Vault service
+  systemd:
+    name: vault.service
+    enabled: true
+    state: started
+    daemon_reload: yes
+    no_block: false
+
+- name: Wait for Vault API
+  uri:
+    url: "http://127.0.0.1:8200/v1/sys/health"
+    method: GET
+  register: vault_health
+  retries: 20
+  delay: 3
+  until: vault_health.status != -1
+  failed_when: false
+  changed_when: false
+
+- name: Check Vault status
+  command: vault status -format=json
+  environment:
+    VAULT_ADDR: "http://127.0.0.1:8200"
+  register: vault_status
+  changed_when: false
+  failed_when: false
+
+- debug:
+    msg: >
+      Vault Status:
+      {{ vault_status.stdout }}
