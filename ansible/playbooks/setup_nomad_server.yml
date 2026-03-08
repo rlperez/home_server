@@ -1,6 +1,9 @@
 ---
 - name: Setup Fedora Server with Nomad
-  hosts: "{{ target_hosts | default('all') }}"
+  hosts: "{{ target_hosts | default('nomad_servers') }}"
   become: true
   roles:
     - automatic_updates
+    - hashicorp_repo
+    - setup_podman
+    - setup_nomad

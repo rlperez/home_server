@@ -1,0 +1,46 @@
+datacenter = "homelab"
+data_dir   = "/opt/nomad/data"
+
+bind_addr = "127.0.0.1"
+
+server {
+  enabled = true
+  bootstrap_expect = 1
+}
+
+client {
+  enabled = true
+  network_interface = "{{ ansible_default_ipv4.interface }}"
+  network_speed = 1000
+}
+
+advertise {
+  http = "127.0.0.1:4646"
+  rpc  = "127.0.0.1:4647"
+  serf = "127.0.0.1:4648"
+}
+
+ui {
+  enabled = true
+}
+
+connect {
+  enabled = true
+}
+
+consul {
+  address = "127.0.0.1:8500"
+  token = "{{ consul_encryption_key }}"
+}
+
+vault {
+  enabled = true
+  address = "http://127.0.0.1:8200"
+  create_from_role = "nomad-cluster"
+}
+
+telemetry {
+  publish_allocation_metrics = true
+  publish_node_metrics       = true
+  prometheus_metrics         = true
+}

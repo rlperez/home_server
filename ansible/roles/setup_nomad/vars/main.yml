@@ -1,0 +1,7 @@
+---
+nomad:
+  user:
+    name: nomad
+    comment: Nomad User
+    group: nomad
+    subid_start: 296608
