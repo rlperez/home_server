@@ -1,0 +1,64 @@
+---
+- name: Install Nomad
+  become: true
+  dnf5:
+    name:
+      - nomad
+      - nomad-driver-podman
+      - nomad-autoscaler
+      - consul-cni
+    state: present
+
+- name: Get {{ nomad.user.name }} UID
+  command: id -u {{ nomad.user.name }}
+  register: nomad_uid
+  changed_when: false
+
+- name: Create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nomad.user.name }}"
+    group: "{{ nomad.user.name }}"
+    mode: "0755"
+  loop:
+    - /opt/nomad
+    - /opt/nomad/data
+    - /etc/nomad.d
+
+- name: Nomad config
+  template:
+    src: ../templates/nomad.hcl.j2
+    dest: /etc/nomad.d/nomad.hcl
+    owner: "{{ nomad.user.name }}"
+    group: "{{ nomad.user.name }}"
+    mode: 0644
+
+- name: Enable and start Nomad service
+  systemd:
+    name: nomad.service
+    enabled: true
+    state: started
+    daemon_reload: yes
+    no_block: false
+
+- name: Wait for Nomad API
+  uri:
+    url: http://127.0.0.1:4646/v1/status/leader
+  register: nomad_api
+  retries: 20
+  delay: 3
+  until: nomad_api.status == 200
+  changed_when: false
+
+- name: Check Nomad service status
+  command: nomad status
+  environment:
+    NOMAD_ADDR: http://127.0.0.1:4646
+  register: nomad_status
+
+- debug:
+    msg: >
+      Nomad service status: {{ nomad_status.stdout }}
+      Nomad API status: {{ nomad_api.status }}
+      Nomad API response: {{ nomad_api.content }}
