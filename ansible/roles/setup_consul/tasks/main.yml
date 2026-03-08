@@ -1,0 +1,64 @@
+---
+- name: Install Consul
+  become: true
+  dnf5:
+    name: consul
+    state: present
+
+- name: Get {{ consul.user.name }} UID
+  command: id -u {{ consul.user.name }}
+  register: consul_uid
+  changed_when: false
+
+- name: Create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ consul.user.name }}"
+    group: "{{ consul.user.name }}"
+    mode: "0755"
+  loop:
+    - /etc/consul.d
+    - /opt/consul
+
+- name: Copy consul.hcl template
+  template:
+    src: ../templates/consul.hcl.j2
+    dest: /etc/consul.d/consul.hcl
+    owner: "{{ consul.user.name }}"
+    group: "{{ consul.user.name }}"
+    mode: "0644"
+
+- name: Enable and start Consul service
+  systemd:
+    name: consul.service
+    enabled: true
+    state: started
+    daemon_reload: yes
+    no_block: true
+
+- name: Wait for Consul API
+  wait_for:
+    host: "{{ ansible_default_ipv4.address }}"
+    port: 8500
+    timeout: 60
+
+- name: Test Consul service
+  command: consul members
+  register: consul_members
+  changed_when: false
+
+- name: Output of Consul members
+  debug:
+    var: consul_members.stdout_lines
+
+- name: Check that Consul UI is accessible
+  command: curl http://{{ ansible_host }}:8500/v1/status/leader
+  register: consul_response
+  changed_when: false
+  retries: 5
+  delay: 2
+
+- name: Output of Consul UI response
+  debug:
+    var: consul_response.stdout_lines

@@ -1,0 +1,7 @@
+---
+consul:
+  user:
+    name: consul
+    comment: Consul User
+    group: consul
+    subid_start: 165536
