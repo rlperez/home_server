@@ -28,18 +28,10 @@
     - /etc/nomad.d/certs
     - /opt/cni/bin
 
-- name: Nomad config
-  template:
-    src: ../templates/nomad.hcl.j2
-    dest: /etc/nomad.d/nomad.hcl
-    owner: "{{ nomad.user.name }}"
-    group: "{{ nomad.user.name }}"
-    mode: 0644
-
 - name: Request Nomad certificate from Vault
   community.hashi_vault.vault_write:
-    url: "http://{{ ansible_default_ipv4.address }}:8200"
-    token: "{{ vault_root_token }}"
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ vault.root_token }}"
     path: pki/issue/nomad
     data:
       common_name: "{{ inventory_hostname }}"
@@ -68,6 +60,50 @@
     owner: "{{ nomad.user.name }}"
     group: "{{ nomad.user.name }}"
     mode: "0640"
+
+- name: Ensure Vault is reachable
+  uri:
+    url: "{{ nomad_server.vault.addr }}/v1/sys/health"
+    method: GET
+  register: vault_health
+  retries: 10
+  delay: 5
+  until: vault_health.status == 200
+
+- name: Create Nomad policy in Vault
+  shell: |
+    vault policy write nomad-cluster - <<'EOF'
+    path "secret/data/nomad/*" {
+      capabilities = ["read", "list"]
+    }
+
+    path "pki_int/issue/nomad" {
+      capabilities = ["create", "update"]
+    }
+    EOF
+  environment:
+    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+  args:
+    creates: /tmp/nomad_policy_created
+  register: nomad_policy
+
+- name: Create Nomad token in Vault
+  shell: vault token create -policy="nomad-cluster" -format=json
+  environment:
+    VAULT_ADDR: "http://vault.service.consul:8200"
+  register: vault_nomad_token_json
+
+- name: Set vault_nomad_token fact
+  set_fact:
+    vault_nomad_token: "{{ vault_nomad_token_json.stdout | from_json | json_query('auth.client_token') }}"
+
+- name: Nomad config
+  template:
+    src: ../templates/nomad.hcl.j2
+    dest: /etc/nomad.d/nomad.hcl
+    owner: "{{ nomad.user.name }}"
+    group: "{{ nomad.user.name }}"
+    mode: 0644
 
 - name: Enable and start Nomad service
   systemd:
