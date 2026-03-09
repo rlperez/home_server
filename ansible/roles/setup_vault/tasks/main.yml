@@ -36,7 +36,7 @@
 
 - name: Wait for Vault API
   uri:
-    url: "http://127.0.0.1:8200/v1/sys/health"
+    url: "{{ vault.addr }}/v1/sys/health"
     method: GET
   register: vault_health
   retries: 20
@@ -48,7 +48,7 @@
 - name: Check Vault status
   command: vault status -format=json
   environment:
-    VAULT_ADDR: "http://127.0.0.1:8200"
+    VAULT_ADDR: "{{ vault.addr }}"
   register: vault_status
   changed_when: false
   failed_when: false
@@ -57,3 +57,12 @@
     msg: >
       Vault Status:
       {{ vault_status.stdout }}
+
+- name: Check Vault service registration in Consul
+  shell: consul catalog services
+  register: consul_services
+  changed_when: false
+  failed_when: "'vault' not in consul_services.stdout"
+
+- debug:
+    msg: "Vault registered services: {{ consul_services.stdout }}"
