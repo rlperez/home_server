@@ -12,11 +12,11 @@ service_registration "consul" {
     name = "vault"
     port = 8200
     tags = ["api"]
-    address = "{{ vault.hostname }}"
+    address = "{{ nomad_server.vault.hostname }}"
 
     tagged_addresses {
-      lan_ipv4 = "{{ vault.hostname }}"
-      wan_ipv4 = "{{ vault.hostname }}"
+      lan_ipv4 = "{{ nomad_server.vault.hostname }}"
+      wan_ipv4 = "{{ nomad_server.vault.hostname }}"
     }
   }
 }
@@ -26,5 +26,5 @@ storage "raft" {
   node_id = "vault1"
 }
 
-api_addr = "{{ vault.addr }}"
+api_addr = "{{ nomad_server.vault.addr }}"
 cluster_addr = "http://{{ ansible_default_ipv4.address }}:8201"
