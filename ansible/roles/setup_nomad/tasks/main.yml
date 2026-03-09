@@ -25,6 +25,8 @@
     - /opt/nomad
     - /opt/nomad/data
     - /etc/nomad.d
+    - /etc/nomad.d/certs
+    - /opt/cni/bin
 
 - name: Nomad config
   template:
@@ -33,6 +35,39 @@
     owner: "{{ nomad.user.name }}"
     group: "{{ nomad.user.name }}"
     mode: 0644
+
+- name: Request Nomad certificate from Vault
+  community.hashi_vault.vault_write:
+    url: "http://{{ ansible_default_ipv4.address }}:8200"
+    token: "{{ vault_root_token }}"
+    path: pki/issue/nomad
+    data:
+      common_name: "{{ inventory_hostname }}"
+  register: nomad_cert
+
+- name: Write Nomad certificate
+  copy:
+    dest: "{{ nomad.vault.cert_file }}"
+    content: "{{ nomad_cert.data.data.certificate }}"
+    owner: "{{ nomad.user.name }}"
+    group: "{{ nomad.user.name }}"
+    mode: "0644"
+
+- name: Write CA certificate
+  copy:
+    dest: "{{ nomad.vault.ca_file }}"
+    content: "{{ nomad_cert.data.data.issuing_ca }}"
+    owner: "{{ nomad.user.name }}"
+    group: "{{ nomad.user.name }}"
+    mode: "0644"
+
+- name: Write Nomad private key
+  copy:
+    dest: "{{ nomad.vault.key_file }}"
+    content: "{{ nomad_cert.data.data.private_key }}"
+    owner: "{{ nomad.user.name }}"
+    group: "{{ nomad.user.name }}"
+    mode: "0640"
 
 - name: Enable and start Nomad service
   systemd:
@@ -45,6 +80,7 @@
 - name: Wait for Nomad API
   uri:
     url: http://127.0.0.1:4646/v1/status/leader
+    validate_certs: false
   register: nomad_api
   retries: 20
   delay: 3
