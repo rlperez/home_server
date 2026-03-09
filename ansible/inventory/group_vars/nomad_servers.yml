@@ -1,0 +1,9 @@
+vault:
+  addr: "http://vault.service.consul:8200"
+  hostname: "vault.service.consul"
+  nomad:
+    role: "nomad-cluster"
+    token: "{{ vault.nomad.token }}"
+    token_file: "/etc/nomad.d/vault_nomad_token"
+    key_file: "/etc/nomad.d/certs/nomad-key.pem"
+  root_token: ""
