@@ -1,46 +1,77 @@
 datacenter = "homelab"
 data_dir   = "/opt/nomad/data"
 
-bind_addr = "127.0.0.1"
+bind_addr = "0.0.0.0"
 
-server {
+acl {
   enabled = true
-  bootstrap_expect = 1
+}
+
+advertise {
+  http = "{{ ansible_default_ipv4.address }}:4646"
+  rpc  = "{{ ansible_default_ipv4.address }}:4647"
+  serf = "{{ ansible_default_ipv4.address }}:4648"
 }
 
 client {
   enabled = true
   network_interface = "{{ ansible_default_ipv4.interface }}"
   network_speed = 1000
-}
-
-advertise {
-  http = "127.0.0.1:4646"
-  rpc  = "127.0.0.1:4647"
-  serf = "127.0.0.1:4648"
-}
-
-ui {
-  enabled = true
-}
-
-connect {
-  enabled = true
+  cni_path = "/opt/cni/bin"
 }
 
 consul {
   address = "127.0.0.1:8500"
-  token = "{{ consul_encryption_key }}"
+  token = "{{ consul_nomad_token }}"
+  auto_advertise = true
+  server_service_name = "nomad"
+  client_service_name = "nomad-client"
 }
 
-vault {
+server {
   enabled = true
-  address = "http://127.0.0.1:8200"
-  create_from_role = "nomad-cluster"
+  bootstrap_expect = 1
 }
 
 telemetry {
   publish_allocation_metrics = true
   publish_node_metrics       = true
   prometheus_metrics         = true
+}
+
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "{{ nomad.vault.ca_file }}"
+  cert_file = "{{ nomad.vault.cert_file }}"
+  key_file  = "{{ nomad.vault.key_file }}"
+}
+
+ui {
+  enabled = true
+
+  consul {
+    ui_url = "https://home-server-1.local:8501/ui"
+  }
+
+  vault {
+    ui_url = "https://home-server-1.local:8200/ui"
+  }
+}
+
+vault {
+  enabled = true
+  address = "{{ vault.addr }}"
+  create_from_role = "{{ vault.nomad.role }}"
+  token = "{{ vault_nomad_token }}"
+  ca_file = "{{ nomad.vault.ca_file }}"
+}
+
+plugin "nomad-driver-podman" {
+  config {
+    volumes {
+      enabled = true
+    }
+  }
 }
