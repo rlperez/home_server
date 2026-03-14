@@ -4,26 +4,17 @@ disable_mlock = true
 listener "tcp" {
   address     = "0.0.0.0:8200"
   tls_disable = 0
+  tls_cert_file = "/etc/vault.d/tls/vault.crt"
+  tls_key_file  = "/etc/vault.d/tls/vault.key"
 }
 
 service_registration "consul" {
   address = "127.0.0.1:8500"
-  service {
-    name = "vault"
-    port = 8200
-    tags = ["api"]
-    address = "{{ nomad_server.vault.hostname }}"
-
-    tagged_addresses {
-      lan_ipv4 = "{{ nomad_server.vault.hostname }}"
-      wan_ipv4 = "{{ nomad_server.vault.hostname }}"
-    }
-  }
 }
 
 storage "raft" {
   path    = "/opt/vault/data"
-  node_id = "vault1"
+  node_id = "{{ ansible_hostname }}"
 }
 
 api_addr = "{{ nomad_server.vault.addr }}"
