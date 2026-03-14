@@ -2,7 +2,7 @@
 dependencies:
   - role: setup_user
     vars:
-      user_name: "{{ podman.user.name}}"
-      user_comment: "{{ podman.user.comment}}"
-      user_group: "{{ podman.user.group}}"
-      user_subid_start: "{{ podman.user.subid_start}}"
+      user_name: "{{ podman.user.name }}"
+      user_comment: "{{ podman.user.comment }}"
+      user_group: "{{ podman.user.group }}"
+      user_subid_start: "{{ podman.user.subid_start }}"

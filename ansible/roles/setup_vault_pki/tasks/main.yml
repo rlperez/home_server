@@ -8,7 +8,7 @@
 - name: Enable PKI secrets engine
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ vault_root_token }}"
+    token: "{{ nomad_server.vault.root_token }}"
     path: sys/mounts/pki
     data:
       type: pki
@@ -17,7 +17,7 @@
 - name: Configure PKI TTL
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ vault_root_token }}"
+    token: "{{ nomad_server.vault.root_token }}"
     path: sys/mounts/pki/tune
     data:
       max_lease_ttl: 87600h
@@ -25,7 +25,7 @@
 - name: Generate root CA
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ vault_root_token }}"
+    token: "{{ nomad_server.vault.root_token }}"
     path: pki/root/generate/internal
     data:
       common_name: "homelab-ca"
@@ -34,9 +34,9 @@
 - name: Create Nomad PKI role
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ vault_root_token }}"
+    token: "{{ nomad_server.vault.root_token }}"
     path: pki/roles/nomad
     data:
-      allowed_domains: "{{ groups['nomad_servers'] | map('extract', hostvars, 'ansible_host') | join(',') }}"
-      allow_subdomains: true
+      allow_any_name: true
+      enforce_hostnames: false
       max_ttl: "72h"
