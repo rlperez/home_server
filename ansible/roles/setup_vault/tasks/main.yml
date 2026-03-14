@@ -20,6 +20,31 @@
   loop:
     - /etc/vault.d
     - /opt/vault/data
+    - /etc/vault.d/tls
+
+- name: Generate bootstrap Vault TLS certificate
+  command: >
+    openssl req -x509 -nodes -days 3650
+    -newkey rsa:4096
+    -keyout /etc/vault.d/tls/vault.key
+    -out /etc/vault.d/tls/vault.crt
+    -subj "/CN={{ ansible_hostname }}"
+  args:
+    creates: /etc/vault.d/tls/vault.crt
+
+- name: Set vault.key file permissions
+  file:
+    path: "/etc/vault.d/tls/vault.key"
+    owner: "{{ vault.user.name }}"
+    group: "{{ vault.user.group }}"
+    mode: "0600"
+
+- name: Set vault.crt file permissions
+  file:
+    path: "/etc/vault.d/tls/vault.crt"
+    owner: "{{ vault.user.name }}"
+    group: "{{ vault.user.group }}"
+    mode: "0640"
 
 - name: Vault config
   template:
