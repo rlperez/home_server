@@ -31,7 +31,7 @@
 - name: Request Nomad certificate from Vault
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ vault.root_token }}"
+    token: "{{ nomad_server.vault.root_token }}"
     path: pki/issue/nomad
     data:
       common_name: "{{ inventory_hostname }}"
@@ -90,7 +90,7 @@
 - name: Create Nomad token in Vault
   shell: vault token create -policy="nomad-cluster" -format=json
   environment:
-    VAULT_ADDR: "http://vault.service.consul:8200"
+    VAULT_ADDR: "https://vault.service.consul:8200"
   register: vault_nomad_token_json
 
 - name: Set vault_nomad_token fact
