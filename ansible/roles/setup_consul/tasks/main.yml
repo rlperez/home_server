@@ -29,6 +29,30 @@
     group: "{{ consul.user.name }}"
     mode: "0644"
 
+- name: Ensure resolved drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure Consul DNS forwarding
+  copy:
+    dest: /etc/systemd/resolved.conf.d/consul.conf
+    content: |
+      [Resolve]
+      DNS=127.0.0.1:8600
+      Domains=~consul
+  notify: Restart systemd-resolved
+
+- meta: flush_handlers
+
+- name: Restart systemd-resolved
+  systemd:
+    name: systemd-resolved
+    state: restarted
+
 - name: Enable and start Consul service
   systemd:
     name: consul.service
