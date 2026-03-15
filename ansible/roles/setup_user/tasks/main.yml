@@ -8,7 +8,7 @@
   user:
     name: "{{user_name}}"
     comment: Setup user {{user_name}}
-    group: "{{user_group}}"
+    groups: "{{user_group}}"
     append: "{{user_append}}"
     create_home: "{{user_create_home}}"
     system: "{{user_system}}"

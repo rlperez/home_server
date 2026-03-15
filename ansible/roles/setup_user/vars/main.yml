@@ -1,0 +1,6 @@
+---
+user_append: true
+user_create_home: true
+user_system: true
+user_shell: /sbin/nologin
+user_subid_range: 65536
