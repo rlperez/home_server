@@ -35,7 +35,10 @@
     path: pki/issue/nomad
     data:
       common_name: "{{ inventory_hostname }}"
+      alt_names: "localhost,{{ ansible_hostname }},nomad.service.consul"
+      ip_sans: "127.0.0.1,{{ ansible_default_ipv4.address }}"
   register: nomad_cert
+  no_log: true
 
 - name: Write Nomad certificate
   copy:
@@ -81,8 +84,10 @@
       capabilities = ["create", "update"]
     }
     EOF
+    touch /tmp/nomad_policy_created
   environment:
     VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
   args:
     creates: /tmp/nomad_policy_created
   register: nomad_policy
@@ -90,12 +95,14 @@
 - name: Create Nomad token in Vault
   shell: vault token create -policy="nomad-cluster" -format=json
   environment:
-    VAULT_ADDR: "https://vault.service.consul:8200"
+    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
   register: vault_nomad_token_json
+  no_log: true
 
 - name: Set vault_nomad_token fact
   set_fact:
-    vault_nomad_token: "{{ vault_nomad_token_json.stdout | from_json | json_query('auth.client_token') }}"
+    vault_nomad_token: "{{ (vault_nomad_token_json.stdout | from_json).auth.client_token }}"
 
 - name: Nomad config
   template:
@@ -103,19 +110,25 @@
     dest: /etc/nomad.d/nomad.hcl
     owner: "{{ nomad.user.name }}"
     group: "{{ nomad.user.name }}"
-    mode: 0644
+    mode: "0644"
+
+- name: Enable and start system Podman socket (Required for Nomad driver)
+  systemd:
+    name: podman.socket
+    enabled: true
+    state: started
 
 - name: Enable and start Nomad service
   systemd:
     name: nomad.service
     enabled: true
-    state: started
+    state: restarted
     daemon_reload: yes
     no_block: false
 
-- name: Wait for Nomad API
+- name: Wait for Nomad API (Using HTTPS)
   uri:
-    url: http://127.0.0.1:4646/v1/status/leader
+    url: "https://127.0.0.1:4646/v1/status/leader" # <--- Changed to HTTPS
     validate_certs: false
   register: nomad_api
   retries: 20
@@ -123,14 +136,47 @@
   until: nomad_api.status == 200
   changed_when: false
 
+- name: Bootstrap Nomad ACLs
+  command: nomad acl bootstrap -json
+  environment:
+    NOMAD_ADDR: "https://127.0.0.1:4646"
+    NOMAD_CACERT: "{{ nomad.vault.ca_file }}"
+  register: nomad_acl_bootstrap
+  failed_when:
+    - nomad_acl_bootstrap.rc != 0
+    - "'ACL bootstrap already done' not in nomad_acl_bootstrap.stderr"
+  changed_when: nomad_acl_bootstrap.rc == 0
+
+- name: Save Nomad bootstrap token to file
+  copy:
+    content: "{{ nomad_acl_bootstrap.stdout }}"
+    dest: /etc/nomad.d/nomad-management-token.json
+    owner: "{{ nomad.user.name }}"
+    group: "{{ nomad.user.name }}"
+    mode: "0600"
+  when: nomad_acl_bootstrap.rc == 0
+
+- name: Read current Nomad bootstrap token
+  slurp:
+    src: /etc/nomad.d/nomad-management-token.json
+  register: nomad_token_file
+
+- name: Set Nomad token fact
+  set_fact:
+    nomad_management_token: "{{ (nomad_token_file.content | b64decode | from_json).SecretID }}"
+
 - name: Check Nomad service status
   command: nomad status
   environment:
-    NOMAD_ADDR: http://127.0.0.1:4646
+    NOMAD_ADDR: "https://127.0.0.1:4646"
+    NOMAD_CACERT: "{{ nomad.vault.ca_file }}"
+    NOMAD_TOKEN: "{{ nomad_management_token }}" # <--- This fixes the 403!
   register: nomad_status
+  changed_when: false
+  no_log: true
 
 - debug:
     msg: >
       Nomad service status: {{ nomad_status.stdout }}
       Nomad API status: {{ nomad_api.status }}
-      Nomad API response: {{ nomad_api.content }}
+      Nomad Leader: {{ nomad_api.json | default('Unknown') }}

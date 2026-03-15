@@ -22,7 +22,7 @@ client {
 
 consul {
   address = "127.0.0.1:8500"
-  token = "{{ consul.nomad_token }}"
+  token = "{{ nomad_server.consul.nomad_token }}"
   auto_advertise = true
   server_service_name = "nomad"
   client_service_name = "nomad-client"
@@ -63,7 +63,7 @@ ui {
 vault {
   enabled = true
   address = "{{ nomad_server.vault.addr }}"
-  create_from_role = "{{ vault.nomad.role }}"
+  create_from_role = "{{ nomad_server.vault.get('nomad', {}).get('role', 'nomad-cluster') }}"
   token = "{{ vault_nomad_token }}"
   ca_file = "{{ nomad.vault.ca_file }}"
 }
