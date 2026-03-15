@@ -43,6 +43,7 @@
     data:
       common_name: "homelab-ca"
       ttl: 87600h
+  no_log: true
 
 - name: Create Nomad PKI role
   community.hashi_vault.vault_write:
