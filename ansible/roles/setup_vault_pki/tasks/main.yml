@@ -5,20 +5,32 @@
       - python3-hvac
     state: present
 
+- name: Check current Vault mounts
+  community.hashi_vault.vault_read:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/mounts
+    validate_certs: true
+  register: vault_mounts
+
 - name: Enable PKI secrets engine
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: sys/mounts/pki
+    validate_certs: true
     data:
       type: pki
-  ignore_errors: true
+      config:
+        max_lease_ttl: 87600h
+  when: "'pki/' not in vault_mounts.data.data"
 
 - name: Configure PKI TTL
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: sys/mounts/pki/tune
+    validate_certs: true
     data:
       max_lease_ttl: 87600h
 
@@ -27,6 +39,7 @@
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: pki/root/generate/internal
+    validate_certs: true
     data:
       common_name: "homelab-ca"
       ttl: 87600h
@@ -36,6 +49,7 @@
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: pki/roles/nomad
+    validate_certs: true
     data:
       allow_any_name: true
       enforce_hostnames: false
