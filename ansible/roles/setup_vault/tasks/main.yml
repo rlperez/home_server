@@ -5,6 +5,12 @@
     name: vault
     state: present
 
+- name: Install DNS tools (dig/nslookup)
+  become: true
+  dnf5:
+    name: bind-utils
+    state: present
+
 - name: Get {{ vault.user.name }} UID
   command: id -u {{ vault.user.name }}
   register: vault_uid
@@ -47,6 +53,18 @@
     group: "{{ vault.user.group }}"
     mode: "0640"
 
+- name: Trust Vault self-signed certificate system-wide
+  become: true
+  copy:
+    src: /etc/vault.d/tls/vault.crt
+    dest: /etc/pki/ca-trust/source/anchors/vault.crt
+    remote_src: yes
+  register: ca_trust_update
+
+- name: Update OS CA trust immediately
+  become: true
+  command: update-ca-trust
+  when: ca_trust_update.changed
 - name: Vault config
   template:
     src: ../templates/vault.hcl.j2
@@ -60,33 +78,85 @@
     daemon_reload: yes
     no_block: false
 
-- name: Wait for Vault API to be ready
-  command: dig @127.0.0.1 -p 8600 +short vault.service.consul
-  register: dns_result
-  until: dns_result.stdout != ""
-  retries: 30
-  delay: 5
-  ignore_errors: yes
+- name: Force restart Vault to register with Consul
+  systemd:
+    name: vault
+    state: restarted
+    daemon_reload: yes
 
-- name: Fail if DNS never resolved
-  fail:
-    msg: "DNS resolution for vault.service.consul failed after 30 retries"
-  when: dns_result.stdout == ""
-
-- name: Check Vault status
+- name: Check Vault status (127.0.0.1 to avoid DNS/TLS issues)
   command: vault status -format=json
-  environment:
-    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
   register: vault_status
+  environment:
+    VAULT_ADDR: "https://127.0.0.1:8200"
   changed_when: false
   failed_when: false
 
-- debug:
-    msg: >
-      Vault Status:
-      {{ vault_status.stdout }}
-      Vault DNS:
-      {{ dns_result.stdout }}
+- name: Parse Vault status JSON
+  set_fact:
+    vault_status_parsed: "{{ vault_status.stdout | from_json }}"
+
+- name: Unseal Vault (Loops through keys until unsealed)
+  command: "vault operator unseal {{ item }}"
+  loop: "{{ nomad_server.vault.unseal_keys }}"
+  when: vault_status_parsed.sealed | bool
+  environment:
+    VAULT_ADDR: "https://127.0.0.1:8200"
+  register: unseal_result
+  no_log: true
+
+- name: Verify Vault is now unsealed
+  command: vault status -format=json
+  environment:
+    VAULT_ADDR: "https://127.0.0.1:8200"
+  register: vault_status_after
+  changed_when: false
+  failed_when: false
+
+- name: Parse post-unseal status
+  set_fact:
+    vault_status_after_parsed: "{{ vault_status_after.stdout | from_json }}"
+
+- name: Fail if still sealed
+  fail:
+    msg: "Vault failed to unseal. Status: {{ vault_status_after_parsed }}"
+  when: vault_status_after_parsed.sealed | bool
+
+- name: Wait for Vault DNS to resolve
+  command: dig +short @127.0.0.1 -p 8600 vault.service.consul
+  register: vault_dns
+  changed_when: false
+  retries: 20
+  delay: 3
+  until: vault_dns.stdout | trim | length > 0
+
+- name: Wait for system resolver to resolve .consul domain
+  command: getent ahostsv4 {{ nomad_server.vault.hostname }}
+  register: resolved_dns
+  changed_when: false
+  failed_when: false
+  retries: 20
+  delay: 3
+  until: resolved_dns.rc == 0 and (resolved_dns.stdout | length > 0)
+
+- name: Wait for Vault API to be ready via Hostname
+  uri:
+    url: "https://{{ nomad_server.vault.hostname }}:8200/v1/sys/health?standbyok=true"
+    method: GET
+    validate_certs: true
+    status_code: [200, 429]
+  register: vault_health
+  until: vault_health.status in [200, 429]
+  retries: 30
+  delay: 5
+
+- name: Check Vault status via Hostname
+  command: vault status -format=json
+  environment:
+    VAULT_ADDR: "https://{{ nomad_server.vault.hostname }}:8200"
+  register: final_vault_status
+  changed_when: false
+  failed_when: false
 
 - name: Check Vault service registration in Consul
   shell: consul catalog services
@@ -95,4 +165,7 @@
   failed_when: "'vault' not in consul_services.stdout"
 
 - debug:
-    msg: "Vault registered services: {{ consul_services.stdout }}"
+    msg: >
+      Vault is fully unsealed, healthy, and resolvable!
+      Registered in Consul: {{ 'vault' in consul_services.stdout }}
+      Vault DNS IP: {{ vault_dns.stdout | trim }}
