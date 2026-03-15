@@ -1,20 +1,20 @@
 ---
 - name: Install Podman
   become: true
-  dnf5:
+  ansible.builtin.dnf5:
     name: podman
     state: present
 
 - name: Get {{podman.user.name}} UID
-  command: id -u {{podman.user.name}}
+  ansible.builtin.command: id -u {{podman.user.name}}
   register: podman_uid
   changed_when: false
 
 - name: Enable Podman socket for {{podman.user.name}}
-  systemd:
+  ansible.builtin.systemd:
     name: podman.socket
     scope: user
-    enabled: yes
+    enabled: true
     state: started
   become: true
   become_user: "{{ podman.user.name }}"
@@ -26,22 +26,22 @@
   become: true
   become_user: "{{podman.user.name}}"
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{podman_uid.stdout}}"
-  command: podman info
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid.stdout }}"
+  ansible.builtin.command: podman info
   register: podman_output
 
 - name: Show Podman output
-  debug:
+  ansible.builtin.debug:
     var: podman_output.stdout
 
 - name: Run test container
   become: true
   become_user: "{{podman.user.name}}"
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{podman_uid.stdout}}"
-  command: podman run --name podman_test --rm docker.io/library/alpine echo hello
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid.stdout }}"
+  ansible.builtin.command: podman run --name podman_test --rm docker.io/library/alpine echo hello
   register: podman_output
 
 - name: Show Podman output
-  debug:
+  ansible.builtin.debug:
     var: podman_output.stdout

@@ -1,12 +1,12 @@
 ---
 - name: Install dnf5-plugin-automatic
   become: true
-  dnf5:
+  ansible.builtin.dnf5:
     name: dnf5-plugin-automatic
     state: present
 
 - name: Copy and configure automatic.conf
-  template:
+  ansible.builtin.template:
     src: ../templates/automatic.conf.j2
     dest: /etc/dnf/automatic.conf
     mode: "0644"
@@ -14,7 +14,7 @@
     group: root
 
 - name: Enable and start dnf5-automatic.timer
-  systemd:
+  ansible.builtin.systemd:
     name: dnf5-automatic.timer
     enabled: true
     state: started

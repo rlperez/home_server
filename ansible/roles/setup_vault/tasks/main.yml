@@ -1,23 +1,23 @@
 ---
 - name: Install Vault
   become: true
-  dnf5:
+  ansible.builtin.dnf5:
     name: vault
     state: present
 
 - name: Install DNS tools (dig/nslookup)
   become: true
-  dnf5:
+  ansible.builtin.dnf5:
     name: bind-utils
     state: present
 
 - name: Get {{ vault.user.name }} UID
-  command: id -u {{ vault.user.name }}
+  ansible.builtin.command: id -u {{ vault.user.name }}
   register: vault_uid
   changed_when: false
 
 - name: Create directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ vault.user.name }}"
@@ -29,7 +29,7 @@
     - /etc/vault.d/tls
 
 - name: Generate bootstrap Vault TLS certificate
-  command: >
+  ansible.builtin.command: >
     openssl req -x509 -nodes -days 3650
     -newkey rsa:4096
     -keyout /etc/vault.d/tls/vault.key
@@ -40,14 +40,14 @@
     creates: /etc/vault.d/tls/vault.crt
 
 - name: Set vault.key file permissions
-  file:
+  ansible.builtin.file:
     path: "/etc/vault.d/tls/vault.key"
     owner: "{{ vault.user.name }}"
     group: "{{ vault.user.group }}"
     mode: "0600"
 
 - name: Set vault.crt file permissions
-  file:
+  ansible.builtin.file:
     path: "/etc/vault.d/tls/vault.crt"
     owner: "{{ vault.user.name }}"
     group: "{{ vault.user.group }}"
@@ -55,37 +55,37 @@
 
 - name: Trust Vault self-signed certificate system-wide
   become: true
-  copy:
+  ansible.builtin.copy:
     src: /etc/vault.d/tls/vault.crt
     dest: /etc/pki/ca-trust/source/anchors/vault.crt
-    remote_src: yes
+    remote_src: true
   register: ca_trust_update
 
 - name: Update OS CA trust immediately
   become: true
-  command: update-ca-trust
+  ansible.builtin.command: update-ca-trust
   when: ca_trust_update.changed
 - name: Vault config
-  template:
+  ansible.builtin.template:
     src: ../templates/vault.hcl.j2
     dest: /etc/vault.d/vault.hcl
 
 - name: Enable and start Vault service
-  systemd:
+  ansible.builtin.systemd:
     name: vault.service
     enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
     no_block: false
 
 - name: Force restart Vault to register with Consul
-  systemd:
+  ansible.builtin.systemd:
     name: vault
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
 
 - name: Check Vault status (127.0.0.1 to avoid DNS/TLS issues)
-  command: vault status -format=json
+  ansible.builtin.command: vault status -format=json
   register: vault_status
   environment:
     VAULT_ADDR: "https://127.0.0.1:8200"
@@ -93,11 +93,11 @@
   failed_when: false
 
 - name: Parse Vault status JSON
-  set_fact:
+  ansible.builtin.set_fact:
     vault_status_parsed: "{{ vault_status.stdout | from_json }}"
 
 - name: Unseal Vault (Loops through keys until unsealed)
-  command: "vault operator unseal {{ item }}"
+  ansible.builtin.command: "vault operator unseal {{ item }}"
   loop: "{{ nomad_server.vault.unseal_keys }}"
   when: vault_status_parsed.sealed | bool
   environment:
@@ -106,7 +106,7 @@
   no_log: true
 
 - name: Verify Vault is now unsealed
-  command: vault status -format=json
+  ansible.builtin.command: vault status -format=json
   environment:
     VAULT_ADDR: "https://127.0.0.1:8200"
   register: vault_status_after
@@ -114,16 +114,16 @@
   failed_when: false
 
 - name: Parse post-unseal status
-  set_fact:
+  ansible.builtin.set_fact:
     vault_status_after_parsed: "{{ vault_status_after.stdout | from_json }}"
 
 - name: Fail if still sealed
-  fail:
+  ansible.builtin.fail:
     msg: "Vault failed to unseal. Status: {{ vault_status_after_parsed }}"
   when: vault_status_after_parsed.sealed | bool
 
 - name: Wait for Vault DNS to resolve
-  command: dig +short @127.0.0.1 -p 8600 vault.service.consul
+  ansible.builtin.command: dig +short @127.0.0.1 -p 8600 vault.service.consul
   register: vault_dns
   changed_when: false
   retries: 20
@@ -131,7 +131,7 @@
   until: vault_dns.stdout | trim | length > 0
 
 - name: Wait for system resolver to resolve .consul domain
-  command: getent ahostsv4 {{ nomad_server.vault.hostname }}
+  ansible.builtin.command: getent ahostsv4 {{ nomad_server.vault.hostname }}
   register: resolved_dns
   changed_when: false
   failed_when: false
@@ -140,7 +140,7 @@
   until: resolved_dns.rc == 0 and (resolved_dns.stdout | length > 0)
 
 - name: Wait for Vault API to be ready via Hostname
-  uri:
+  ansible.builtin.uri:
     url: "https://{{ nomad_server.vault.hostname }}:8200/v1/sys/health?standbyok=true"
     method: GET
     validate_certs: true
@@ -151,7 +151,7 @@
   delay: 5
 
 - name: Check Vault status via Hostname
-  command: vault status -format=json
+  ansible.builtin.command: vault status -format=json
   environment:
     VAULT_ADDR: "https://{{ nomad_server.vault.hostname }}:8200"
   register: final_vault_status
@@ -159,12 +159,12 @@
   failed_when: false
 
 - name: Check Vault service registration in Consul
-  shell: consul catalog services
+  ansible.builtin.command: consul catalog services
   register: consul_services
   changed_when: false
   failed_when: "'vault' not in consul_services.stdout"
 
-- debug:
+- ansible.builtin.debug:
     msg: >
       Vault is fully unsealed, healthy, and resolvable!
       Registered in Consul: {{ 'vault' in consul_services.stdout }}

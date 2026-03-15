@@ -1,17 +1,17 @@
 ---
 - name: Install Consul
   become: true
-  dnf5:
+  ansible.builtin.dnf5:
     name: consul
     state: present
 
 - name: Get {{ consul.user.name }} UID
-  command: id -u {{ consul.user.name }}
+  ansible.builtin.command: id -u {{ consul.user.name }}
   register: consul_uid
   changed_when: false
 
 - name: Create directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ consul.user.name }}"
@@ -23,7 +23,7 @@
     - /etc/systemd/system/consul.service.d
 
 - name: Copy consul.hcl template
-  template:
+  ansible.builtin.template:
     src: ../templates/consul.hcl.j2
     dest: /etc/consul.d/consul.hcl
     owner: "{{ consul.user.name }}"
@@ -39,7 +39,7 @@
     mode: "0755"
 
 - name: Configure Consul DNS forwarding
-  copy:
+  ansible.builtin.copy:
     dest: /etc/systemd/resolved.conf.d/consul.conf
     mode: "0644"
     content: |
@@ -49,18 +49,17 @@
       DNSStubListenerExtra=0.0.0.0:53
   notify: Restart systemd-resolved
 
-- meta: flush_handlers
-
+- ansible.builtin.meta: flush_handlers
 - name: Enable and start Consul service
-  systemd:
+  ansible.builtin.systemd:
     name: consul.service
     enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
     no_block: false
 
 - name: Override consul systemd unit type to simple
-  copy:
+  ansible.builtin.copy:
     dest: /etc/systemd/system/consul.service.d/override.conf
     mode: "0644"
     content: |
@@ -70,20 +69,20 @@
       RestartSec=5
 
 - name: Restart Consul service
-  systemd:
+  ansible.builtin.systemd:
     name: consul.service
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
     no_block: false
 
 - name: Wait for Consul API
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ ansible_default_ipv4.address }}"
     port: 8500
     timeout: 60
 
 - name: Wait for Consul leader
-  command: curl -sf http://127.0.0.1:8500/v1/status/leader
+  ansible.builtin.command: curl -sf http://127.0.0.1:8500/v1/status/leader
   register: consul_leader
   changed_when: false
   failed_when: false
@@ -92,21 +91,21 @@
   until: consul_leader.rc == 0 and consul_leader.stdout != "\"\""
 
 - name: Test Consul service
-  command: consul members
+  ansible.builtin.command: consul members
   register: consul_members
   changed_when: false
 
 - name: Output of Consul members
-  debug:
+  ansible.builtin.debug:
     var: consul_members.stdout_lines
 
 - name: Check that Consul UI is accessible
-  command: curl http://{{ ansible_host }}:8500/v1/status/leader
+  ansible.builtin.command: curl http://{{ ansible_host }}:8500/v1/status/leader
   register: consul_response
   changed_when: false
   retries: 5
   delay: 2
 
 - name: Output of Consul UI response
-  debug:
+  ansible.builtin.debug:
     var: consul_response.stdout_lines

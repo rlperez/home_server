@@ -5,7 +5,7 @@
     state: present
 
 - name: Create a user "{{ user_name }}"
-  user:
+  ansible.builtin.user:
     name: "{{ user_name }}"
     comment: Setup user {{ user_name }}
     groups: "{{ user_group }}"
@@ -15,14 +15,14 @@
     shell: "{{ user_shell }}"
 
 - name: Configure subuid for "{{ user_name }}"
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/subuid
     line: "{{ user_name }}:{{ user_subid_start }}:{{ user_subid_range }}"
     create: true
   become: true
 
 - name: Check if linger is enabled
-  stat:
+  ansible.builtin.stat:
     path: /var/lib/systemd/linger/{{ podman }}
   register: linger_status
 
@@ -32,14 +32,14 @@
   when: not linger_status.stat.exists
 
 - name: Get "{{ user_name }}" UID
-  command: id -u {{ user_name }}
+  ansible.builtin.command: id -u {{ user_name }}
   register: user_name_uid
   changed_when: false
 
 - name: Show "{{ user_name }}" uid
-  debug:
+  ansible.builtin.debug:
     msg: "User {{ user_name }} UID is {{ user_name_uid.stdout }}"
 
 - name: Set "{{ user_name }}" UID
-  set_fact:
+  ansible.builtin.set_fact:
     user_name_uid: "{{ user_name_uid.stdout }}"

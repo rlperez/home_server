@@ -1,6 +1,6 @@
 ---
 - name: Install dependencies
-  dnf5:
+  ansible.builtin.dnf5:
     name:
       - python3-hvac
     state: present

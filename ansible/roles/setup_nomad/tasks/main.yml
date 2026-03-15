@@ -1,7 +1,7 @@
 ---
 - name: Install Nomad
   become: true
-  dnf5:
+  ansible.builtin.dnf5:
     name:
       - nomad
       - nomad-driver-podman
@@ -10,12 +10,12 @@
     state: present
 
 - name: Get {{ nomad.user.name }} UID
-  command: id -u {{ nomad.user.name }}
+  ansible.builtin.command: id -u {{ nomad.user.name }}
   register: nomad_uid
   changed_when: false
 
 - name: Create directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ nomad.user.name }}"
@@ -41,7 +41,7 @@
   no_log: true
 
 - name: Write Nomad certificate
-  copy:
+  ansible.builtin.copy:
     dest: "{{ nomad.vault.cert_file }}"
     content: "{{ nomad_cert.data.data.certificate }}"
     owner: "{{ nomad.user.name }}"
@@ -49,7 +49,7 @@
     mode: "0644"
 
 - name: Write CA certificate
-  copy:
+  ansible.builtin.copy:
     dest: "{{ nomad.vault.ca_file }}"
     content: "{{ nomad_cert.data.data.issuing_ca }}"
     owner: "{{ nomad.user.name }}"
@@ -57,7 +57,7 @@
     mode: "0644"
 
 - name: Write Nomad private key
-  copy:
+  ansible.builtin.copy:
     dest: "{{ nomad.vault.key_file }}"
     content: "{{ nomad_cert.data.data.private_key }}"
     owner: "{{ nomad.user.name }}"
@@ -65,7 +65,7 @@
     mode: "0640"
 
 - name: Ensure Vault is reachable
-  uri:
+  ansible.builtin.uri:
     url: "{{ nomad_server.vault.addr }}/v1/sys/health"
     method: GET
   register: vault_health
@@ -74,7 +74,7 @@
   until: vault_health.status == 200
 
 - name: Create Nomad policy in Vault
-  shell: |
+  ansible.builtin.shell: |
     vault policy write nomad-cluster - <<'EOF'
     path "secret/data/nomad/*" {
       capabilities = ["read", "list"]
@@ -93,7 +93,7 @@
   register: nomad_policy
 
 - name: Create Nomad token in Vault
-  shell: vault token create -policy="nomad-cluster" -format=json
+  ansible.builtin.command: vault token create -policy="nomad-cluster" -format=json
   environment:
     VAULT_ADDR: "{{ nomad_server.vault.addr }}"
     VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
@@ -101,11 +101,11 @@
   no_log: true
 
 - name: Set vault_nomad_token fact
-  set_fact:
+  ansible.builtin.set_fact:
     vault_nomad_token: "{{ (vault_nomad_token_json.stdout | from_json).auth.client_token }}"
 
 - name: Nomad config
-  template:
+  ansible.builtin.template:
     src: ../templates/nomad.hcl.j2
     dest: /etc/nomad.d/nomad.hcl
     owner: "{{ nomad.user.name }}"
@@ -113,21 +113,21 @@
     mode: "0644"
 
 - name: Enable and start system Podman socket (Required for Nomad driver)
-  systemd:
+  ansible.builtin.systemd:
     name: podman.socket
     enabled: true
     state: started
 
 - name: Enable and start Nomad service
-  systemd:
+  ansible.builtin.systemd:
     name: nomad.service
     enabled: true
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
     no_block: false
 
 - name: Wait for Nomad API (Using HTTPS)
-  uri:
+  ansible.builtin.uri:
     url: "https://127.0.0.1:4646/v1/status/leader" # <--- Changed to HTTPS
     validate_certs: false
   register: nomad_api
@@ -137,7 +137,7 @@
   changed_when: false
 
 - name: Bootstrap Nomad ACLs
-  command: nomad acl bootstrap -json
+  ansible.builtin.command: nomad acl bootstrap -json
   environment:
     NOMAD_ADDR: "https://127.0.0.1:4646"
     NOMAD_CACERT: "{{ nomad.vault.ca_file }}"
@@ -148,7 +148,7 @@
   changed_when: nomad_acl_bootstrap.rc == 0
 
 - name: Save Nomad bootstrap token to file
-  copy:
+  ansible.builtin.copy:
     content: "{{ nomad_acl_bootstrap.stdout }}"
     dest: /etc/nomad.d/nomad-management-token.json
     owner: "{{ nomad.user.name }}"
@@ -157,16 +157,16 @@
   when: nomad_acl_bootstrap.rc == 0
 
 - name: Read current Nomad bootstrap token
-  slurp:
+  ansible.builtin.slurp:
     src: /etc/nomad.d/nomad-management-token.json
   register: nomad_token_file
 
 - name: Set Nomad token fact
-  set_fact:
+  ansible.builtin.set_fact:
     nomad_management_token: "{{ (nomad_token_file.content | b64decode | from_json).SecretID }}"
 
 - name: Check Nomad service status
-  command: nomad status
+  ansible.builtin.command: nomad status
   environment:
     NOMAD_ADDR: "https://127.0.0.1:4646"
     NOMAD_CACERT: "{{ nomad.vault.ca_file }}"
@@ -175,7 +175,7 @@
   changed_when: false
   no_log: true
 
-- debug:
+- ansible.builtin.debug:
     msg: >
       Nomad service status: {{ nomad_status.stdout }}
       Nomad API status: {{ nomad_api.status }}
