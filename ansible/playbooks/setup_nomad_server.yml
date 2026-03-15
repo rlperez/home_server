@@ -8,4 +8,5 @@
     - setup_podman
     - setup_consul
     - setup_vault
+    - setup_vault_pki
     - setup_nomad

@@ -9,4 +9,3 @@ podman:
     system: true
     shell: /sbin/nologin
     subid_start: 100000
-    subid_range: 65536
