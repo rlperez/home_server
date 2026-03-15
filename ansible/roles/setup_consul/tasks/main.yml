@@ -20,6 +20,7 @@
   loop:
     - /etc/consul.d
     - /opt/consul
+    - /etc/systemd/system/consul.service.d
 
 - name: Copy consul.hcl template
   template:
@@ -40,18 +41,15 @@
 - name: Configure Consul DNS forwarding
   copy:
     dest: /etc/systemd/resolved.conf.d/consul.conf
+    mode: "0644"
     content: |
       [Resolve]
       DNS=127.0.0.1:8600
       Domains=~consul
+      DNSStubListenerExtra=0.0.0.0:53
   notify: Restart systemd-resolved
 
 - meta: flush_handlers
-
-- name: Restart systemd-resolved
-  systemd:
-    name: systemd-resolved
-    state: restarted
 
 - name: Enable and start Consul service
   systemd:
@@ -59,13 +57,39 @@
     enabled: true
     state: started
     daemon_reload: yes
-    no_block: true
+    no_block: false
+
+- name: Override consul systemd unit type to simple
+  copy:
+    dest: /etc/systemd/system/consul.service.d/override.conf
+    mode: "0644"
+    content: |
+      [Service]
+      Type=simple
+      Restart=on-failure
+      RestartSec=5
+
+- name: Restart Consul service
+  systemd:
+    name: consul.service
+    state: restarted
+    daemon_reload: yes
+    no_block: false
 
 - name: Wait for Consul API
   wait_for:
     host: "{{ ansible_default_ipv4.address }}"
     port: 8500
     timeout: 60
+
+- name: Wait for Consul leader
+  command: curl -sf http://127.0.0.1:8500/v1/status/leader
+  register: consul_leader
+  changed_when: false
+  failed_when: false
+  retries: 30
+  delay: 2
+  until: consul_leader.rc == 0 and consul_leader.stdout != "\"\""
 
 - name: Test Consul service
   command: consul members
