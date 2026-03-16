@@ -102,17 +102,10 @@
   changed_when: false
   when: nomad_policy_lookup.status != 200
 
-- name: Check if Nomad token exists
-  ansible.builtin.uri:
-    url: "{{ nomad_server.vault.addr }}/v1/auth/token/lookup-self"
-    method: GET
-    headers:
-      X-Vault-Token: "{{ nomad_server.vault.root_token }}"
-    validate_certs: false
-  register: nomad_token_lookup
-  changed_when: false
-  failed_when: false
-  no_log: true
+- name: Check if Nomad Vault token file exists
+  ansible.builtin.stat:
+    path: /etc/nomad.d/vault-token.txt
+  register: nomad_vault_token_file
 
 - name: Create Nomad token in Vault
   ansible.builtin.command: vault token create -policy="nomad-cluster" -format=json
@@ -120,20 +113,37 @@
     VAULT_ADDR: "{{ nomad_server.vault.addr }}"
     VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
   register: nomad_vault_token_json
-  changed_when: false
-  when: nomad_token_lookup.status != 200
+  changed_when: true
+  when: not nomad_vault_token_file.stat.exists
+  no_log: true
+
+- name: Save Nomad Vault token to file
+  ansible.builtin.copy:
+    content: "{{ (nomad_vault_token_json.stdout | from_json).auth.client_token }}"
+    dest: /etc/nomad.d/vault-token.txt
+    owner: "{{ nomad_user.name }}"
+    group: "{{ nomad_user.name }}"
+    mode: "0600"
+  when: not nomad_vault_token_file.stat.exists
+  no_log: true
+
+- name: Read Nomad Vault token from file
+  ansible.builtin.slurp:
+    src: /etc/nomad.d/vault-token.txt
+  register: nomad_vault_token_b64
   no_log: true
 
 - name: Set nomad_vault_token fact
   ansible.builtin.set_fact:
-    nomad_vault_token: "{{ (nomad_vault_token_json.stdout | from_json).auth.client_token }}"
+    nomad_vault_token: "{{ nomad_vault_token_b64.content | b64decode }}"
+  no_log: true
 
 - name: Nomad config
   ansible.builtin.template:
     src: "{{ role_path }}/templates/nomad.hcl.j2"
     dest: /etc/nomad.d/nomad.hcl
-    owner: "{{ nomad.user.name }}"
-    group: "{{ nomad.user.name }}"
+    owner: "{{ nomad_user.name }}"
+    group: "{{ nomad_user.name }}"
     mode: "0644"
 
 - name: Enable and start system Podman socket (Required for Nomad driver)
@@ -164,7 +174,7 @@
   ansible.builtin.command: nomad acl bootstrap -json
   environment:
     NOMAD_ADDR: "https://127.0.0.1:4646"
-    NOMAD_CACERT: "{{ nomad.vault.ca_file }}"
+    NOMAD_CACERT: "{{ nomad_vault.ca_file }}"
   register: nomad_acl_bootstrap
   failed_when:
     - nomad_acl_bootstrap.rc != 0
@@ -174,15 +184,15 @@
 - name: Save Nomad bootstrap token to file
   ansible.builtin.copy:
     content: "{{ nomad_acl_bootstrap.stdout }}"
-    dest: /etc/nomad.d/nomad-management-token.json
-    owner: "{{ nomad.user.name }}"
-    group: "{{ nomad.user.name }}"
+    dest: /etc/nomad.d/nomad-management-token.txt
+    owner: "{{ nomad_user.name }}"
+    group: "{{ nomad_user.name }}"
     mode: "0600"
   when: nomad_acl_bootstrap.rc == 0
 
 - name: Read current Nomad bootstrap token
   ansible.builtin.slurp:
-    src: /etc/nomad.d/nomad-management-token.json
+    src: /etc/nomad.d/nomad-management-token.txt
   register: nomad_token_file
 
 - name: Set Nomad token fact
@@ -193,7 +203,7 @@
   ansible.builtin.command: nomad status
   environment:
     NOMAD_ADDR: "https://127.0.0.1:4646"
-    NOMAD_CACERT: "{{ nomad.vault.ca_file }}"
+    NOMAD_CACERT: "{{ nomad_vault.ca_file }}"
     NOMAD_TOKEN: "{{ nomad_management_token }}"
   register: nomad_status
   changed_when: false
