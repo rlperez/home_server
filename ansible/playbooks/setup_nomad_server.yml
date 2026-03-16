@@ -5,8 +5,8 @@
   roles:
     - automatic_updates
     - hashicorp_repo
-    - setup_podman
-    - setup_consul
-    - setup_vault
-    - setup_vault_pki
-    - setup_nomad
+    - podman
+    - consul
+    - vault
+    - vault_pki
+    - nomad
