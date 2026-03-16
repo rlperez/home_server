@@ -1,0 +1,10 @@
+---
+podman_user:
+  name: podman
+  comment: Podman User
+  group: podman
+  append: true
+  create_home: true
+  system: true
+  shell: /sbin/nologin
+  subid_start: 100000
