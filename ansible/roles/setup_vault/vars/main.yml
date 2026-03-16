@@ -1,6 +1,0 @@
-vault:
-  user:
-    name: vault
-    comment: Vault User
-    group: vault
-    subid_start: 231072

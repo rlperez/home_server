@@ -1,0 +1,8 @@
+---
+dependencies:
+  - role: user
+    vars:
+      user_name: "{{ consul_user.name }}"
+      user_comment: "{{ consul_user.comment }}"
+      user_group: "{{ consul_user.group }}"
+      user_subid_start: "{{ consul_user.subid_start }}"

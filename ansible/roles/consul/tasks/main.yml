@@ -1,0 +1,118 @@
+---
+- name: Install Consul
+  become: true
+  ansible.builtin.dnf5:
+    name: consul
+    state: present
+
+- name: Get UID for {{ consul_user.name }}
+  ansible.builtin.command: id -u {{ consul_user.name }}
+  register: consul_uid
+  changed_when: false
+
+- name: Create directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ consul_user.name }}"
+    group: "{{ consul_user.name }}"
+    mode: "0755"
+  loop:
+    - /etc/consul.d
+    - /opt/consul
+    - /etc/systemd/system/consul.service.d
+
+- name: Copy consul.hcl template
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/consul.hcl.j2"
+    dest: /etc/consul.d/consul.hcl
+    owner: "{{ consul_user.name }}"
+    group: "{{ consul_user.name }}"
+    mode: "0644"
+
+- name: Ensure resolved drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure Consul DNS forwarding
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/consul.conf
+    mode: "0644"
+    content: |
+      [Resolve]
+      DNS=127.0.0.1:8600
+      Domains=~consul
+      DNSStubListenerExtra=0.0.0.0:53
+  notify: Restart systemd-resolved
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Consul service
+  ansible.builtin.systemd:
+    name: consul.service
+    enabled: true
+    state: started
+    daemon_reload: true
+    no_block: false
+
+- name: Override consul systemd unit type to simple
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/consul.service.d/override.conf
+    mode: "0644"
+    content: |
+      [Service]
+      Type=simple
+      Restart=on-failure
+      RestartSec=5
+
+- name: Restart Consul service
+  ansible.builtin.systemd:
+    name: consul.service
+    state: restarted
+    daemon_reload: true
+    no_block: false
+
+- name: Wait for Consul API
+  ansible.builtin.wait_for:
+    host: "{{ ansible_default_ipv4.address }}"
+    port: 8500
+    timeout: 60
+
+- name: Wait for Consul leader
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8500/v1/status/leader
+    method: GET
+    status_code: [200, 429]
+    return_content: true
+  register: consul_leader
+  until: consul_leader.status == 200 and consul_leader.content != '""'
+  retries: 30
+  delay: 2
+
+- name: Test Consul service
+  ansible.builtin.command: consul members
+  register: consul_members
+  changed_when: false
+
+- name: Output of Consul members
+  ansible.builtin.debug:
+    var: consul_members.stdout_lines
+
+- name: Check that Consul UI is accessible
+  ansible.builtin.uri:
+    url: http://{{ ansible_host }}:8500/v1/status/leader
+    method: GET
+    status_code: [200, 429]
+    return_content: true
+  register: consul_response
+  retries: 5
+  delay: 2
+
+- name: Output of Consul UI response
+  ansible.builtin.debug:
+    var: consul_response.content

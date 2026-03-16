@@ -1,0 +1,59 @@
+---
+- name: Install Podman
+  become: true
+  ansible.builtin.dnf5:
+    name: podman
+    state: present
+
+- name: Get user info for {{ podman_user.name }}
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ podman_user.name }}"
+
+- name: Set Podman UID fact
+  ansible.builtin.set_fact:
+    podman_uid: "{{ getent_passwd[podman_user.name][1] }}"
+
+- name: Ensure systemd user manager is running for {{ podman_user.name }}
+  become: true
+  ansible.builtin.systemd:
+    name: "user@{{ podman_uid }}.service"
+    state: started
+
+- name: Enable Podman socket for {{ podman_user.name }}
+  become: true
+  become_user: "{{ podman_user.name }}"
+  ansible.builtin.systemd:
+    name: podman.socket
+    scope: user
+    enabled: true
+    state: started
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ podman_uid }}/bus"
+
+- name: Show Podman info
+  become: true
+  become_user: "{{ podman_user.name }}"
+  ansible.builtin.command: podman info
+  changed_when: false
+  register: podman_info
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}"
+
+- name: Show Podman output
+  ansible.builtin.debug:
+    var: podman_info.stdout
+
+- name: Run test container
+  become: true
+  become_user: "{{ podman_user.name }}"
+  ansible.builtin.command: podman run --name podman_test --rm docker.io/library/alpine echo hello
+  register: podman_test
+  changed_when: false
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}"
+
+- name: Show test container output
+  ansible.builtin.debug:
+    var: podman_test.stdout

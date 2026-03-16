@@ -1,0 +1,47 @@
+---
+- name: Ensure group exists for "{{ user_group }}"
+  ansible.builtin.group:
+    name: "{{ user_group }}"
+    state: present
+
+- name: Create a user "{{ user_name }}"
+  ansible.builtin.user:
+    name: "{{ user_name }}"
+    comment: Setup user {{ user_name }}
+    groups: "{{ user_group }}"
+    append: "{{ user_append }}"
+    create_home: "{{ user_create_home }}"
+    system: "{{ user_system }}"
+    shell: "{{ user_shell }}"
+
+- name: Configure subuid for "{{ user_name }}"
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    line: "{{ user_name }}:{{ user_subid_start }}:{{ user_subid_range }}"
+    create: true
+    mode: "0644"
+  become: true
+
+- name: Check if linger is enabled
+  ansible.builtin.stat:
+    path: /var/lib/systemd/linger/{{ user_name }}
+  register: user_linger_status
+
+- name: Enable linger for "{{ user_name }}"
+  ansible.builtin.command: loginctl enable-linger {{ user_name }}
+  become: true
+  changed_when: user_linger_status.stat.exists
+  when: not user_linger_status.stat.exists
+
+- name: Get UID of "{{ user_name }}"
+  ansible.builtin.command: id -u {{ user_name }}
+  register: user_name_uid
+  changed_when: false
+
+- name: Show UID of "{{ user_name }}"
+  ansible.builtin.debug:
+    msg: "User {{ user_name }} UID is {{ user_name_uid.stdout }}"
+
+- name: Set UID for "{{ user_name }}"
+  ansible.builtin.set_fact:
+    user_name_uid: "{{ user_name_uid.stdout }}"

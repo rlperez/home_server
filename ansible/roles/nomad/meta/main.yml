@@ -1,0 +1,8 @@
+---
+dependencies:
+  - role: user
+    vars:
+      user_name: "{{ nomad_user.name }}"
+      user_comment: "{{ nomad_user.comment }}"
+      user_group: "{{ nomad_user.group }}"
+      user_subid_start: "{{ nomad_user.subid_start }}"

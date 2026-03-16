@@ -1,0 +1,8 @@
+---
+dependencies:
+  - role: user
+    vars:
+      user_name: "{{ podman_user.name }}"
+      user_comment: "{{ podman_user.comment }}"
+      user_group: "{{ podman_user.group }}"
+      user_subid_start: "{{ podman_user.subid_start }}"

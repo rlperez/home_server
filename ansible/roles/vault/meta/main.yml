@@ -1,0 +1,8 @@
+---
+dependencies:
+  - role: user
+    vars:
+      user_name: "{{ vault_user.name }}"
+      user_comment: "{{ vault_user.comment }}"
+      user_group: "{{ vault_user.group }}"
+      user_subid_start: "{{ vault_user.subid_start }}"
