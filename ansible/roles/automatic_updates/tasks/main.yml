@@ -7,7 +7,7 @@
 
 - name: Copy and configure automatic.conf
   ansible.builtin.template:
-    src: ../templates/automatic.conf.j2
+    src: "{{ role_path }}/templates/automatic.conf.j2"
     dest: /etc/dnf/automatic.conf
     mode: "0644"
     owner: root
