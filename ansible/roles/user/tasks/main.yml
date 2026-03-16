@@ -1,5 +1,5 @@
 ---
-- name: Ensure group "{{ user_group }}" exists
+- name: Ensure group exists for "{{ user_group }}"
   ansible.builtin.group:
     name: "{{ user_group }}"
     state: present
@@ -19,27 +19,29 @@
     path: /etc/subuid
     line: "{{ user_name }}:{{ user_subid_start }}:{{ user_subid_range }}"
     create: true
+    mode: "0644"
   become: true
 
 - name: Check if linger is enabled
   ansible.builtin.stat:
     path: /var/lib/systemd/linger/{{ podman }}
-  register: linger_status
+  register: user_linger_status
 
 - name: Enable linger for "{{ user_name }}"
   ansible.builtin.command: loginctl enable-linger {{ user_name }}
   become: true
-  when: not linger_status.stat.exists
+  changed_when: user_linger_status.stat.exists
+  when: not user_linger_status.stat.exists
 
-- name: Get "{{ user_name }}" UID
+- name: Get UID of "{{ user_name }}"
   ansible.builtin.command: id -u {{ user_name }}
   register: user_name_uid
   changed_when: false
 
-- name: Show "{{ user_name }}" uid
+- name: Show UID of "{{ user_name }}"
   ansible.builtin.debug:
     msg: "User {{ user_name }} UID is {{ user_name_uid.stdout }}"
 
-- name: Set "{{ user_name }}" UID
+- name: Set UID for "{{ user_name }}"
   ansible.builtin.set_fact:
     user_name_uid: "{{ user_name_uid.stdout }}"
