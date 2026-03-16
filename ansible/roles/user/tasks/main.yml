@@ -24,7 +24,7 @@
 
 - name: Check if linger is enabled
   ansible.builtin.stat:
-    path: /var/lib/systemd/linger/{{ podman }}
+    path: /var/lib/systemd/linger/{{ user_name }}
   register: user_linger_status
 
 - name: Enable linger for "{{ user_name }}"
