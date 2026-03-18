@@ -7,6 +7,7 @@
       - nomad-driver-podman
       - nomad-autoscaler
       - consul-cni
+      - containernetworking-plugins
     state: present
 
 - name: Get UID for {{ nomad_user.name }}
