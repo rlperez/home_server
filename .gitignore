@@ -1,5 +1,2 @@
-hosts.ini
-hosts.yml
-hosts.yaml
 *.env
 *.log
