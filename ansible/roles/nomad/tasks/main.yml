@@ -171,12 +171,18 @@
   until: nomad_api.status == 200
   changed_when: false
 
+- name: Check if Nomad bootstrap token exists
+  ansible.builtin.stat:
+    path: "{{ nomad_acl.bootstrap_token_file }}"
+  register: token_file
+
 - name: Bootstrap Nomad ACLs
   ansible.builtin.command: nomad acl bootstrap -json
   environment:
     NOMAD_ADDR: "https://127.0.0.1:4646"
     NOMAD_CACERT: "{{ nomad_vault.ca_file }}"
   register: nomad_acl_bootstrap
+  when: not token_file.stat.exists
   failed_when:
     - nomad_acl_bootstrap.rc != 0
     - "'ACL bootstrap already done' not in nomad_acl_bootstrap.stderr"
@@ -185,15 +191,17 @@
 - name: Save Nomad bootstrap token to file
   ansible.builtin.copy:
     content: "{{ nomad_acl_bootstrap.stdout }}"
-    dest: /etc/nomad.d/nomad-management-token.txt
+    dest: "{{ nomad_acl.bootstrap_token_file }}"
     owner: "{{ nomad_user.name }}"
     group: "{{ nomad_user.name }}"
     mode: "0600"
-  when: nomad_acl_bootstrap.rc == 0
+  when:
+    - not token_file.stat.exists
+    - nomad_acl_bootstrap.rc | default(1) == 0
 
 - name: Read current Nomad bootstrap token
   ansible.builtin.slurp:
-    src: /etc/nomad.d/nomad-management-token.txt
+    src: "{{ nomad_acl.bootstrap_token_file }}"
   register: nomad_token_file
 
 - name: Set Nomad token fact
