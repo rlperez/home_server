@@ -1,0 +1,22 @@
+# roles/coredns/templates/Corefile.j2
+.:53 {
+    errors
+    log
+    health :8080
+    ready :8181
+    prometheus :9153
+    cache 300
+    loop
+    reload
+    loadbalance
+
+    forward home.arpa. {{ nomad_server.consul.dns_addr }}
+    forward node.consul. {{ nomad_server.consul.dns_addr }}
+    forward service.consul. {{ nomad_server.consul.dns_addr }}
+    forward consul. {{ nomad_server.consul.dns_addr }}
+
+    # Everything else to upstream resolvers
+    forward . {{ coredns_config.upstream_dns | join(" ") }} {
+        policy random
+    }
+}

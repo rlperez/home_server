@@ -1,0 +1,65 @@
+# roles/coredns/templates/coredns.nomad.j2
+job "coredns" {
+  datacenters = ["homelab"]
+  type = "service"
+
+  group "dns" {
+    network {
+      mode = "host"
+      port "dns"  { static = 53 }
+      port "health" { static = 8080 }
+      port "ready" { static = 8181 }
+    }
+
+    service {
+      name = "coredns"
+      port = "dns"
+      tags = ["dns", "infra"]
+
+      check {
+        name     = "tcp-53"
+        type     = "tcp"
+        port     = "dns"
+        interval = "10s"
+        timeout  = "2s"
+      }
+
+      check {
+        name     = "health-endpoint"
+        type     = "http"
+        path     = "/health"
+        port     = "health"
+        interval = "10s"
+        timeout  = "2s"
+      }
+
+      check {
+          name     = "ready-endpoint"
+          type     = "http"
+          path     = "/ready"
+          port     = "ready"
+          interval = "10s"
+          timeout  = "3s"
+      }
+    }
+
+    task "coredns" {
+      driver = "podman"
+
+      config {
+        image        = "docker.io/coredns/coredns:latest"
+        network_mode = "host"
+        args         = ["-conf", "/etc/coredns/Corefile"]
+        volumes = [
+          "{{ coredns_config.path }}/Corefile:/etc/coredns/Corefile:ro,Z",
+          "{{ coredns_config.path }}/hosts:/etc/coredns/hosts:ro,Z"
+        ]
+      }
+
+      resources {
+        cpu    = 100
+        memory = 128
+      }
+    }
+  }
+}

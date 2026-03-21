@@ -1,0 +1,9 @@
+---
+coredns_config:
+  nomad_job_path: /etc/nomad.d/jobs/coredns.nomad
+  path: /opt/coredns
+  listen_ip: "{{ ansible_default_ipv4.address }}"
+  upstream_dns:
+    - 9.9.9.9
+    - 149.112.112.112
+  hosts_records: []

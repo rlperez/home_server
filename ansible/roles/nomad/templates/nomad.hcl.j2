@@ -17,6 +17,7 @@ client {
   enabled = true
   network_interface = "{{ ansible_default_ipv4.interface }}"
   network_speed = 1000
+  node_class = "{{ ansible_architecture }}"
   cni_path = "/opt/cni/bin:/usr/libexec/cni"
 }
 
@@ -52,11 +53,11 @@ ui {
   enabled = true
 
   consul {
-    ui_url = "https://home-server-1.local:8501/ui"
+    ui_url = "https://home-server-1.lan:8500/ui"
   }
 
   vault {
-    ui_url = "https://home-server-1.local:8200/ui"
+    ui_url = "https://home-server-1.lan:8200/ui"
   }
 }
 

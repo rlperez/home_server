@@ -1,8 +1,8 @@
 ---
 nomad_user:
-  name: nomad
+  name: "{{ nomad_server.nomad.user.name }}"
   comment: Nomad User
-  group: nomad
+  group: "{{ nomad_server.nomad.user.group }}"
   subid_start: 296608
 nomad_vault:
   ca_file: "/etc/nomad.d/certs/ca.pem"

@@ -1,0 +1,74 @@
+---
+- name: Create directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0755"
+  loop:
+    - "{{ coredns_config.path }}"
+    - "{{ coredns_config.nomad_job_path | dirname }}"
+
+- name: Render CoreDNS Corefile
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/Corefile.j2"
+    dest: "{{ coredns_config.path }}/Corefile"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
+  notify: Run CoreDNS Nomad job
+
+- name: Render CoreDNS hosts file
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/hosts.j2"
+    dest: "{{ coredns_config.path }}/hosts"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
+  notify: Run CoreDNS Nomad job
+
+- name: Render Nomad job file
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/coredns.nomad.j2"
+    dest: "{{ coredns_config.nomad_job_path }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
+  notify: Run CoreDNS Nomad job
+
+- name: Read Nomad bootstrap token from remote server
+  ansible.builtin.slurp:
+    src: /etc/nomad.d/nomad-management-token.txt
+  register: nomad_token_slurp
+  no_log: true
+
+- name: Set Nomad token fact
+  ansible.builtin.set_fact:
+    nomad_management_token: "{{ (nomad_token_slurp.content | b64decode | from_json).SecretID }}"
+  no_log: true
+
+- name: Check if firewalld is running
+  ansible.builtin.command: firewall-cmd --state
+  register: firewalld_state
+  changed_when: false
+  failed_when: false
+
+- name: Open DNS service in firewalld
+  ansible.posix.firewalld:
+    service: dns
+    permanent: true
+    state: enabled
+    immediate: true
+  when: firewalld_state.stdout == "running"
+
+- name: Stop and disable systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: stopped
+    enabled: false
+
+- name: Remove symlink for /etc/resolv.conf
+  ansible.builtin.file:
+    path: /etc/resolv.conf
+    state: absent
