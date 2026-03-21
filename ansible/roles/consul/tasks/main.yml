@@ -44,7 +44,7 @@
     mode: "0644"
     content: |
       [Resolve]
-      DNS=127.0.0.1:8600
+      DNS={{ nomad_server.consul.dns_addr }}
       Domains=~consul
       DNSStubListenerExtra=0.0.0.0:53
   notify: Restart systemd-resolved
