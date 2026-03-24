@@ -29,7 +29,7 @@
     enabled: true
     state: started
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}/"
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ podman_uid }}/bus"
 
 - name: Show Podman info
@@ -39,7 +39,7 @@
   changed_when: false
   register: podman_info
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}/"
 
 - name: Show Podman output
   ansible.builtin.debug:
@@ -52,7 +52,7 @@
   register: podman_test
   changed_when: false
   environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ podman_uid }}/"
 
 - name: Show test container output
   ansible.builtin.debug:

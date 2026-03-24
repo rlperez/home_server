@@ -1,7 +1,7 @@
 # roles/coredns/templates/coredns.nomad.j2
 job "coredns" {
   datacenters = ["homelab"]
-  type = "service"
+  type = "system"
 
   group "dns" {
     network {
@@ -49,7 +49,7 @@ job "coredns" {
       config {
         image        = "docker.io/coredns/coredns:latest"
         network_mode = "host"
-        args         = ["-conf", "/etc/coredns/Corefile"]
+        args = ["-conf", "/etc/coredns/Corefile"]
         volumes = [
           "{{ coredns_config.path }}/Corefile:/etc/coredns/Corefile:ro,Z",
           "{{ coredns_config.path }}/hosts:/etc/coredns/hosts:ro,Z"
