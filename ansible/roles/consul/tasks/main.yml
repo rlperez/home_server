@@ -105,7 +105,7 @@
 
 - name: Check that Consul UI is accessible
   ansible.builtin.uri:
-    url: http://127.0.0.1:8500/ui
+    url: https://127.0.0.1:8500/ui
     method: GET
     status_code: [200, 429]
     return_content: true
