@@ -14,4 +14,6 @@ coredns_config:
     # Secondary: Cloudflare (Malware/Phishing Blocked)
     - 2606:4700:4700::1112
     - 1.1.1.2
+    - 2620:fe::fe
+    - 2620:fe::9
   hosts_records: []
