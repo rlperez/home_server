@@ -71,7 +71,7 @@ vault {
 
 plugin "nomad-driver-podman" {
   config {
-    socket_path = "unix:///run/user/{{ nomad_uid.stdout }}/podman/podman.sock"
+    socket_path = "unix:///run/podman/podman.sock"
     volumes {
       enabled = true
     }
