@@ -9,4 +9,5 @@
     - consul
     - vault
     - vault_pki
+    - nomad_certificates
     - nomad

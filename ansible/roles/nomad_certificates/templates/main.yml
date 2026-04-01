@@ -1,0 +1,20 @@
+---
+- name: Restart Nomad
+  block:
+    - name: Check if Nomad is installed
+      ansible.builtin.command: systemctl is-active nomad
+      register: nomad_service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Restart Nomad service
+      ansible.builtin.systemd:
+        name: nomad
+        state: restarted
+        daemon_reload: true
+        no_block: true
+      when: nomad_service_status.rc == 0
+  rescue:
+    - name: Fail gracefully if Nomad not installed
+      ansible.builtin.debug:
+        msg: "Nomad not installed yet, skipping restart. Certs will be picked up on next run."

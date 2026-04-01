@@ -44,9 +44,9 @@ tls {
   http = true
   rpc  = true
 
-  ca_file   = "{{ nomad_vault.ca_file }}"
-  cert_file = "{{ nomad_vault.cert_file }}"
-  key_file  = "{{ nomad_vault.key_file }}"
+  ca_file   = "{{ nomad_server.nomad.vault.ca_file }}"
+  cert_file = "{{ nomad_server.nomad.vault.cert_file }}"
+  key_file  = "{{ nomad_server.nomad.vault.key_file }}"
 }
 
 ui {
@@ -66,7 +66,7 @@ vault {
   address = "{{ nomad_server.vault.addr }}"
   create_from_role = "{{ nomad_server.vault.get('nomad', {}).get('role', 'nomad-cluster') }}"
   token = "{{ nomad_vault_token }}"
-  ca_file = "{{ nomad_vault.ca_file }}"
+  ca_file = "{{ nomad_server.nomad.vault.ca_file }}"
 }
 
 plugin "nomad-driver-podman" {
