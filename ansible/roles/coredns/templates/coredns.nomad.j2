@@ -1,4 +1,3 @@
-# roles/coredns/templates/coredns.nomad.j2
 job "coredns" {
   datacenters = ["homelab"]
   type = "system"
@@ -58,7 +57,7 @@ job "coredns" {
 
       resources {
         cpu    = 100
-        memory = 128
+        memory = 256
       }
     }
   }
