@@ -28,6 +28,15 @@
     mode: "0644"
   notify: Run CoreDNS Nomad job
 
+- name: Ensure hosts file exists (even if empty)
+  ansible.builtin.file:
+    path: "{{ coredns_config.path }}/hosts"
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
 - name: Render Nomad job file
   ansible.builtin.template:
     src: "{{ role_path }}/templates/coredns.nomad.j2"
