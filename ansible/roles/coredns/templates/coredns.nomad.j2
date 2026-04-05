@@ -49,6 +49,9 @@ job "coredns" {
         image        = "docker.io/coredns/coredns:latest"
         network_mode = "host"
         args = ["-conf", "/etc/coredns/Corefile"]
+        env {
+            GOMEMLIMIT = "{{ coredns_config.go_mem_limit | default('200MiB') }}"
+        }
         volumes = [
           "{{ coredns_config.path }}/Corefile:/etc/coredns/Corefile:ro,Z",
           "{{ coredns_config.path }}/hosts:/etc/coredns/hosts:ro,Z"
@@ -56,8 +59,8 @@ job "coredns" {
       }
 
       resources {
-        cpu    = 100
-        memory = 256
+        cpu    = {{ coredns_config.cpu | default(100) }}
+        memory = {{ coredns_config.memory | default(256) }}
       }
     }
   }

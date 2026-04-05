@@ -3,6 +3,10 @@ coredns_config:
   nomad_job_path: /etc/nomad.d/jobs/coredns.nomad
   path: /opt/coredns
   listen_ip: "{{ ansible_default_ipv4.address }}"
+  listen_ipv6: "::"
+  cpu: 100
+  memory: 256
+  go_mem_limit: "200MiB"
   upstream_dns:
     - 9.9.9.9
     - 149.112.112.112
