@@ -8,8 +8,10 @@ coredns_config:
   memory: 256
   go_mem_limit: "200MiB"
   upstream_dns:
-    - 9.9.9.9
-    - 149.112.112.112
+    # Primary: Quad9 (Malware Blocked)
     - 2620:fe::fe
-    - 2620:fe::9
+    - 9.9.9.9
+    # Secondary: Cloudflare (Malware/Phishing Blocked)
+    - 2606:4700:4700::1112
+    - 1.1.1.2
   hosts_records: []
