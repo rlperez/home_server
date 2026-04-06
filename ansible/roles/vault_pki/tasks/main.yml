@@ -1,57 +1,103 @@
 ---
+- name: Ensure Vault is reachable
+  ansible.builtin.uri:
+    url: "{{ nomad_server.vault.addr }}/v1/sys/health"
+    method: GET
+  register: vault_health
+  retries: 10
+  delay: 5
+  until: vault_health.status == 200
+
 - name: Install dependencies
   ansible.builtin.dnf5:
     name:
       - python3-hvac
     state: present
 
-- name: Check current Vault mounts
-  community.hashi_vault.vault_read:
-    url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
-    path: sys/mounts
-    validate_certs: true
-  register: vault_pki_vault_mounts
-
-- name: Enable PKI secrets engine
+- name: Ensure PKI secrets engine is mounted
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: sys/mounts/pki
-    validate_certs: true
+    validate_certs: false
     data:
       type: pki
       config:
-        max_lease_ttl: 87600h
-  when: "'pki/' not in vault_pki_vault_mounts.data.data"
+        max_lease_ttl: "87600h"
+  register: mount_result
+  failed_when: false
+  changed_when: "'errors' not in (mount_result.data | default({}))"
 
-- name: Configure PKI TTL
+- name: Tune PKI mount TTL
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: sys/mounts/pki/tune
-    validate_certs: true
+    validate_certs: false
     data:
-      max_lease_ttl: 87600h
+      max_lease_ttl: "87600h"
+      default_lease_ttl: "87600h"
 
-- name: Generate root CA
+- name: Read Root CA cert from Vault
+  community.hashi_vault.vault_read:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: pki/cert/ca
+    validate_certs: false
+  register: root_ca_read
+  failed_when: false
+  changed_when: false
+  no_log: true
+
+- name: Determine if Root CA exists
+  ansible.builtin.set_fact:
+    root_ca_exists: "{{ 'data' in (root_ca_read.data | default({})) and 'cert' in (root_ca_read.data.data | default({})) }}"
+
+- name: Compute if Root CA is expired
+  ansible.builtin.set_fact:
+    root_ca_expired: >-
+      {{ root_ca_exists and
+         (root_ca_read.data.data.cert.not_after is defined) and
+         (
+           (root_ca_read.data.data.cert.not_after | to_datetime('%Y-%m-%dT%H:%M:%S'))
+           < (ansible_date_time.iso8601 | to_datetime)
+         ) }}
+  when: root_ca_exists
+
+- name: Set CA needs renewal flag
+  ansible.builtin.set_fact:
+    ca_needs_renewal: "{{ (not root_ca_exists) or (root_ca_expired | default(false)) }}"
+
+- name: Generate Root CA (10 years) if missing or expired
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: pki/root/generate/internal
-    validate_certs: true
+    validate_certs: false
     data:
       common_name: "homelab-ca"
-      ttl: 87600h
+      ttl: "87600h"
+  when: ca_needs_renewal
   no_log: true
 
-- name: Create Nomad PKI role
+- name: Create or update Nomad PKI role
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
     path: pki/roles/nomad
-    validate_certs: true
+    validate_certs: false
     data:
-      allow_any_name: true
-      enforce_hostnames: false
-      max_ttl: "72h"
+      allowed_domains:
+        - "node.consul"
+        - "consul"
+        - "home.arpa"
+        - "lan"
+        - "{{ ansible_hostname }}"
+      allow_subdomains: true
+      allow_bare_domains: true
+      allow_localhost: true
+      max_ttl: "87600h"
+      ttl: "87600h"
+      generate_lease: false
+      key_type: rsa
+      key_bits: 4096
