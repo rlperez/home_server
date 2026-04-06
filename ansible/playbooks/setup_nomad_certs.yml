@@ -8,7 +8,5 @@
     nomad_cert_force: true
 
   roles:
+    - vault_pki
     - nomad_certificates
-    - role: nomad
-      tags: nomad_service
-      nomad_restart: true
