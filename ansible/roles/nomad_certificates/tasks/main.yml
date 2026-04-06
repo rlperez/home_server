@@ -13,28 +13,30 @@
     path: "{{ nomad_server.nomad.vault.ca_file }}"
   register: cert_stat
 
-- name: Check certificate expiry
+- name: Check CA certificate expiry
   ansible.builtin.shell: |
-    openssl x509 -in {{ nomad_server.nomad.vault.cert_file }} -noout -enddate 2>/dev/null | cut -d= -f2 || echo "EXPIRED"
+    if [ -f {{ nomad_server.nomad.vault.ca_file }} ]; then
+      openssl x509 -in {{ nomad_server.nomad.vault.ca_file }} -noout -enddate 2>/dev/null | cut -d= -f2 || echo "EXPIRED"
+    else
+      echo "0"
+    fi
   register: cert_expiry
   changed_when: false
   failed_when: false
   when: cert_stat.stat.exists
 
-- name: Set cert needs renewal flag
-  ansible.builtin.set_fact:
-    cert_needs_renewal: "{{ not cert_stat.stat.exists or (cert_expiry.stdout is defined and (cert_expiry.stdout | to_datetime('%b %d %H:%M:%S %Y %Z') | unix_time < (ansible_date_time.epoch | int))) }}"
-
-- name: Get IPv6 addresses (GUA and ULA, exclude link-local)
-  ansible.builtin.set_fact:
-    ipv6_addresses: "{{ ansible_facts[ansible_default_interface].ipv6 | selectattr('address', 'match', '^[23fd]') | map(attribute='address') | list }}"
-  when: cert_needs_renewal | default(true)
+- name: Set CA needs renewal flag
+  set_fact:
+    cert_needs_renewal: >-
+      {{ not cert_stat.stat.exists or
+         (cert_expiry.stdout is defined and
+         ((cert_expiry.stdout | to_datetime('%b %d %H:%M:%S %Y %Z')) | strftime('%s') | int < ansible_date_time.epoch | int)) }}
 
 - name: Set certificate SANs
   ansible.builtin.set_fact:
     cert_alt_names: >-
       localhost,{{ ansible_hostname }},{{ ansible_hostname }}.home.arpa,{{ ansible_hostname }}.node.consul,nomad.service.consul,{{ ansible_hostname }}.lan
-    cert_ip_sans: "127.0.0.1,{{ ansible_default_ipv4.address }}{{ ',' + (ipv6_addresses | join(',')) if ipv6_addresses else '' }}"
+    cert_ip_sans: "127.0.0.1,{{ ansible_default_ipv4.address }}{{ ',' + (ansible_all_ipv6_addresses | join(',')) if ansible_all_ipv6_addresses else '' }}"
   when: cert_needs_renewal | default(true)
 
 - name: Delete existing PKI role if TTL is incorrect
@@ -44,6 +46,7 @@
     headers:
       X-Vault-Token: "{{ nomad_server.vault.root_token }}"
     validate_certs: false
+    status_code: [200, 204, 404]
   when: cert_needs_renewal | default(true)
   changed_when: true
 
@@ -53,7 +56,7 @@
     token: "{{ nomad_server.vault.root_token }}"
     path: pki/roles/nomad
     data:
-      allowed_domains: ["node.consul", "consul", "home.arpa", "lan"]
+      allowed_domains: ["node.consul", "consul", "home.arpa", "lan", "{{ ansible_hostname }}"]
       allow_subdomains: true
       allow_bare_domains: true
       allow_localhost: true
@@ -63,6 +66,18 @@
       key_type: rsa
       key_bits: 4096
   when: cert_needs_renewal | default(true)
+
+- name: Create Nomad policy in Vault
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/policies/acl/nomad-cluster
+    validate_certs: false
+    data:
+      policy: |
+        path "secret/data/nomad/*" { capabilities = ["read", "list"] }
+        path "pki/issue/nomad" { capabilities = ["create", "update"] }
+  when: nomad_policy_check.status | default(404) != 200
 
 - name: Check if Nomad policy exists
   ansible.builtin.uri:
@@ -108,21 +123,7 @@
       common_name: "{{ ansible_hostname }}.home.arpa"
       alt_names: "{{ cert_alt_names }}"
       ip_sans: "{{ cert_ip_sans }}"
-      ttl: "87600h"
-  register: nomad_cert
-  no_log: true
-  when: cert_needs_renewal | default(true)
-
-- name: Request Nomad certificate from Vault (10 year TTL)
-  community.hashi_vault.vault_write:
-    url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
-    path: pki/issue/nomad
-    data:
-      common_name: "{{ ansible_hostname }}.home.arpa"
-      alt_names: "{{ cert_alt_names }}"
-      ip_sans: "{{ cert_ip_sans }}"
-      ttl: "87600h"
+      ttl: "87500h"
   register: nomad_cert
   no_log: true
   when: cert_needs_renewal | default(true)
@@ -131,8 +132,8 @@
   ansible.builtin.copy:
     dest: "{{ nomad_server.nomad.vault.ca_file }}"
     content: "{{ nomad_cert.data.data.issuing_ca }}"
-    owner: "{{ nomad_user.name }}"
-    group: "{{ nomad_user.name }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
   when: cert_needs_renewal | default(true)
   notify: Restart Nomad
@@ -141,8 +142,8 @@
   ansible.builtin.copy:
     dest: "{{ nomad_server.nomad.vault.cert_file }}"
     content: "{{ nomad_cert.data.data.certificate }}"
-    owner: "{{ nomad_user.name }}"
-    group: "{{ nomad_user.name }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
   when: cert_needs_renewal | default(true)
 
@@ -150,7 +151,7 @@
   ansible.builtin.copy:
     dest: "{{ nomad_server.nomad.vault.key_file }}"
     content: "{{ nomad_cert.data.data.private_key }}"
-    owner: "{{ nomad_user.name }}"
-    group: "{{ nomad_user.name }}"
-    mode: "0640"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0600"
   when: cert_needs_renewal | default(true)
