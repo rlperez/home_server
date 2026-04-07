@@ -17,6 +17,6 @@
 
     # Everything else to upstream resolvers
     forward . {{ coredns_config.upstream_dns | join(" ") }} {
-        policy random
+        health_check 5s
     }
 }

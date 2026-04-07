@@ -1,12 +1,11 @@
-# roles/coredns/templates/coredns.nomad.j2
 job "coredns" {
   datacenters = ["homelab"]
-  type = "system"
+  type        = "system"
 
   group "dns" {
     network {
       mode = "host"
-      port "dns"  { static = 53 }
+      port "dns" { static = 53 }
       port "health" { static = 8080 }
       port "ready" { static = 8181 }
     }
@@ -34,12 +33,12 @@ job "coredns" {
       }
 
       check {
-          name     = "ready-endpoint"
-          type     = "http"
-          path     = "/ready"
-          port     = "ready"
-          interval = "10s"
-          timeout  = "3s"
+        name     = "ready-endpoint"
+        type     = "http"
+        path     = "/ready"
+        port     = "ready"
+        interval = "10s"
+        timeout  = "3s"
       }
     }
 
@@ -49,16 +48,20 @@ job "coredns" {
       config {
         image        = "docker.io/coredns/coredns:latest"
         network_mode = "host"
-        args = ["-conf", "/etc/coredns/Corefile"]
+        args         = ["-conf", "/etc/coredns/Corefile"]
         volumes = [
           "{{ coredns_config.path }}/Corefile:/etc/coredns/Corefile:ro,Z",
           "{{ coredns_config.path }}/hosts:/etc/coredns/hosts:ro,Z"
         ]
       }
 
+      env {
+        GOMEMLIMIT = "{{ coredns_config.go_mem_limit | default('200MiB') }}"
+      }
+
       resources {
-        cpu    = 100
-        memory = 128
+        cpu    = {{ coredns_config.cpu | default(100) }}
+        memory = {{ coredns_config.memory | default(256) }}
       }
     }
   }

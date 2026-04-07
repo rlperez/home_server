@@ -28,6 +28,15 @@
     mode: "0644"
   notify: Run CoreDNS Nomad job
 
+- name: Ensure hosts file exists (even if empty)
+  ansible.builtin.file:
+    path: "{{ coredns_config.path }}/hosts"
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
 - name: Render Nomad job file
   ansible.builtin.template:
     src: "{{ role_path }}/templates/coredns.nomad.j2"
@@ -72,3 +81,17 @@
   ansible.builtin.file:
     path: /etc/resolv.conf
     state: absent
+
+- name: Get current active connection name for interface {{ ansible_default_ipv4.interface }}
+  ansible.builtin.command: "nmcli -g GENERAL.CONNECTION device show {{ ansible_default_ipv4.interface }}"
+  register: active_conn
+  changed_when: false
+
+- name: Add IPv6 ULA address to network interface
+  community.general.nmcli:
+    conn_name: "{{ active_conn.stdout }}"
+    type: wifi
+    ssid: "{{ active_conn.stdout }}"
+    ip6: "fd00:1::{{ '%02x' | format(ansible_facts.default_ipv4.address.split('.')[-1] | int) }}/64"
+    method6: manual
+    state: present
