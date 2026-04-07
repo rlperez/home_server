@@ -1,0 +1,12 @@
+---
+- name: Rotate Nomad Certificates
+  hosts: "{{ target_host | default('all') }}"
+  gather_facts: true
+  become: true
+
+  vars:
+    nomad_cert_force: true
+
+  roles:
+    - vault_pki
+    - nomad_certificates

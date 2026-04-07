@@ -1,0 +1,157 @@
+---
+- name: Ensure Vault is reachable
+  ansible.builtin.uri:
+    url: "{{ nomad_server.vault.addr }}/v1/sys/health"
+    method: GET
+  register: vault_health
+  retries: 10
+  delay: 5
+  until: vault_health.status == 200
+
+- name: Check if certificates exist
+  ansible.builtin.stat:
+    path: "{{ nomad_server.nomad.vault.ca_file }}"
+  register: cert_stat
+
+- name: Check CA certificate expiry
+  ansible.builtin.shell: |
+    if [ -f {{ nomad_server.nomad.vault.ca_file }} ]; then
+      openssl x509 -in {{ nomad_server.nomad.vault.ca_file }} -noout -enddate 2>/dev/null | cut -d= -f2 || echo "EXPIRED"
+    else
+      echo "0"
+    fi
+  register: cert_expiry
+  changed_when: false
+  failed_when: false
+  when: cert_stat.stat.exists
+
+- name: Set CA needs renewal flag
+  set_fact:
+    cert_needs_renewal: >-
+      {{ not cert_stat.stat.exists or
+         (cert_expiry.stdout is defined and
+         ((cert_expiry.stdout | to_datetime('%b %d %H:%M:%S %Y %Z')) | strftime('%s') | int < ansible_date_time.epoch | int)) }}
+
+- name: Set certificate SANs
+  ansible.builtin.set_fact:
+    cert_alt_names: >-
+      localhost,{{ ansible_hostname }},{{ ansible_hostname }}.home.arpa,{{ ansible_hostname }}.node.consul,nomad.service.consul,{{ ansible_hostname }}.lan
+    cert_ip_sans: "127.0.0.1,{{ ansible_default_ipv4.address }}{{ ',' + (ansible_all_ipv6_addresses | join(',')) if ansible_all_ipv6_addresses else '' }}"
+  when: cert_needs_renewal | default(true)
+
+- name: Delete existing PKI role if TTL is incorrect
+  ansible.builtin.uri:
+    url: "{{ nomad_server.vault.addr }}/v1/pki/roles/nomad"
+    method: DELETE
+    headers:
+      X-Vault-Token: "{{ nomad_server.vault.root_token }}"
+    validate_certs: false
+    status_code: [200, 204, 404]
+  when: cert_needs_renewal | default(true)
+  changed_when: true
+
+- name: Create PKI role in Vault (10 year TTL)
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: pki/roles/nomad
+    data:
+      allowed_domains: ["node.consul", "consul", "home.arpa", "lan", "{{ ansible_hostname }}"]
+      allow_subdomains: true
+      allow_bare_domains: true
+      allow_localhost: true
+      max_ttl: "87600h"
+      ttl: "87600h"
+      generate_lease: false
+      key_type: rsa
+      key_bits: 4096
+  when: cert_needs_renewal | default(true)
+
+- name: Create Nomad policy in Vault
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/policies/acl/nomad-cluster
+    validate_certs: false
+    data:
+      policy: |
+        path "secret/data/nomad/*" { capabilities = ["read", "list"] }
+        path "pki/issue/nomad" { capabilities = ["create", "update"] }
+  when: nomad_policy_check.status | default(404) != 200
+
+- name: Check if Nomad policy exists
+  ansible.builtin.uri:
+    url: "{{ nomad_server.vault.addr }}/v1/sys/policies/acl/nomad-cluster"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ nomad_server.vault.root_token }}"
+    validate_certs: false
+    return_content: true
+  register: nomad_policy_lookup
+  changed_when: false
+  failed_when: false
+
+- name: Debug policy lookup result
+  ansible.builtin.debug:
+    msg: "Status: {{ nomad_policy_lookup.status }}, Content: {{ nomad_policy_lookup.content }}"
+  when: nomad_policy_lookup is defined
+
+- name: Create Nomad policy in Vault
+  ansible.builtin.shell: |
+    vault policy write nomad-cluster - <<'EOF'
+    path "secret/data/nomad/*" {
+      capabilities = ["read", "list"]
+    }
+
+    path "pki/issue/nomad" {
+      capabilities = ["create", "update"]
+    }
+    EOF
+  environment:
+    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
+  register: nomad_policy
+  changed_when: false
+  when: nomad_policy_lookup is not defined or nomad_policy_lookup.status | default(200) != 200
+
+- name: Request Nomad certificate from Vault (10 year TTL)
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: pki/issue/nomad
+    data:
+      common_name: "{{ ansible_hostname }}.home.arpa"
+      alt_names: "{{ cert_alt_names }}"
+      ip_sans: "{{ cert_ip_sans }}"
+      ttl: "87500h"
+  register: nomad_cert
+  no_log: true
+  when: cert_needs_renewal | default(true)
+
+- name: Write CA certificate
+  ansible.builtin.copy:
+    dest: "{{ nomad_server.nomad.vault.ca_file }}"
+    content: "{{ nomad_cert.data.data.issuing_ca }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
+  when: cert_needs_renewal | default(true)
+  notify: Restart Nomad
+
+- name: Write Nomad certificate
+  ansible.builtin.copy:
+    dest: "{{ nomad_server.nomad.vault.cert_file }}"
+    content: "{{ nomad_cert.data.data.certificate }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
+  when: cert_needs_renewal | default(true)
+
+- name: Write Nomad private key
+  ansible.builtin.copy:
+    dest: "{{ nomad_server.nomad.vault.key_file }}"
+    content: "{{ nomad_cert.data.data.private_key }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0600"
+  when: cert_needs_renewal | default(true)
