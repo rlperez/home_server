@@ -14,4 +14,4 @@ coredns_config:
     # Secondary: Cloudflare (Malware/Phishing Blocked)
     - 2606:4700:4700::1112
     - 1.1.1.2
-  hosts_records: []
+  hosts_records: ["192.168.0.1    router.home.arpa router", "192.168.0.168  home-server-1.home.arpa home-server-1"]

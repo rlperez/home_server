@@ -1,22 +1,43 @@
 # roles/coredns/templates/Corefile.j2
+home.arpa:53 {
+    errors
+    hosts /etc/coredns/hosts {
+        ttl 60
+        reload 5m
+    }
+}
+
+consul:53 {
+    errors
+    cache 30
+    forward . 127.0.0.1:8600
+}
+
 .:53 {
     errors
-    log
+    log # enable only while testing; disable for normal use to reduce noise/memory
     health :8080
     ready :8181
     prometheus :9153
-    cache 300
+
+    reload 10s
     loop
-    reload
     loadbalance
 
-    forward home.arpa. {{ nomad_server.consul.dns_addr }}
     forward node.consul. {{ nomad_server.consul.dns_addr }}
     forward service.consul. {{ nomad_server.consul.dns_addr }}
     forward consul. {{ nomad_server.consul.dns_addr }}
 
+    cache {
+        success 3000 3600 5
+        denial 1000 600 5
+        prefetch 20 1m 10%
+        serve_stale 1h
+    }
+
     # Everything else to upstream resolvers
     forward . {{ coredns_config.upstream_dns | join(" ") }} {
         health_check 5s
+        max_fails 2
     }
 }

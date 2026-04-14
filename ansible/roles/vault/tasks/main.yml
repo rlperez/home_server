@@ -33,11 +33,11 @@
     openssl req -x509 -nodes -days 3650
     -newkey rsa:4096
     -keyout /etc/vault.d/tls/vault.key
-    -out /etc/vault.d/tls/vault.crt
+    -out {{nomad_server.vault.crt_path}}
     -subj "/CN={{ ansible_hostname }}"
     -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:{{ inventory_hostname }},DNS:vault.service.consul,IP:127.0.0.1,IP:{{ ansible_default_ipv4.address }}"
   args:
-    creates: /etc/vault.d/tls/vault.crt
+    creates: "{{nomad_server.vault.crt_path}}"
 
 - name: Set vault.key file permissions
   ansible.builtin.file:
@@ -48,7 +48,7 @@
 
 - name: Set vault.crt file permissions
   ansible.builtin.file:
-    path: "/etc/vault.d/tls/vault.crt"
+    path: "{{nomad_server.vault.crt_path}}"
     owner: "{{ vault_user.name }}"
     group: "{{ vault_user.group }}"
     mode: "0640"
@@ -56,7 +56,7 @@
 - name: Trust Vault self-signed certificate system-wide
   become: true
   ansible.builtin.copy:
-    src: /etc/vault.d/tls/vault.crt
+    src: "{{nomad_server.vault.crt_path}}"
     dest: /etc/pki/ca-trust/source/anchors/vault.crt
     remote_src: true
     mode: "0644"
@@ -75,6 +75,34 @@
     state: started
     daemon_reload: true
     no_block: false
+
+- name: Deploy vault auto-unseal script from template
+  ansible.builtin.template:
+    src: vault-auto-unseal.sh.j2
+    dest: /usr/local/sbin/vault-auto-unseal.sh
+    owner: root
+    group: root
+    mode: "0700"
+  no_log: true
+
+- name: Deploy vault auto-unseal systemd unit from template
+  ansible.builtin.template:
+    src: vault-auto-unseal.service.j2
+    dest: /etc/systemd/system/vault-auto-unseal.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable vault auto-unseal service
+  ansible.builtin.systemd:
+    name: vault-auto-unseal.service
+    enabled: true
+
+- name: Run vault auto-unseal now
+  ansible.builtin.systemd:
+    name: vault-auto-unseal.service
+    state: started
 
 - name: Force restart Vault to register with Consul
   ansible.builtin.systemd:
