@@ -4,7 +4,7 @@ disable_mlock = true
 listener "tcp" {
   address     = "0.0.0.0:8200"
   tls_disable = 0
-  tls_cert_file = "/etc/vault.d/tls/vault.crt"
+  tls_cert_file = "{{nomad_server.vault.crt_path}}"
   tls_key_file  = "/etc/vault.d/tls/vault.key"
 }
 

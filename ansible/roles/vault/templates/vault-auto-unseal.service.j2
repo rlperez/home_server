@@ -1,0 +1,15 @@
+[Unit]
+Description=Vault Auto Unseal
+After=network-online.target vault.service
+Wants=network-online.target
+Requires=vault.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vault-auto-unseal.sh
+User=root
+Group=root
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
