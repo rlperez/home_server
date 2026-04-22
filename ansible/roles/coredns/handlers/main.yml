@@ -3,6 +3,6 @@
   ansible.builtin.command: nomad job run {{ coredns_config.nomad_job_path }}
   environment:
     NOMAD_ADDR: "https://127.0.0.1:4646"
-    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_SKIP_VERIFY: true
     NOMAD_TOKEN: "{{ nomad_management_token }}"
   changed_when: true
