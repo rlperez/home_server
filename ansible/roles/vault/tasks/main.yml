@@ -28,16 +28,98 @@
     - /opt/vault/data
     - /etc/vault.d/tls
 
-- name: Generate bootstrap Vault TLS certificate
+- name: Check if Vault cert is valid server cert
+  command: openssl x509 -in /etc/vault.d/tls/vault.crt -noout -text
+  register: vault_cert_check
+  failed_when: false
+  changed_when: false
+
+- name: Set flag if cert is invalid
+  set_fact:
+    vault_cert_invalid: "{{ 'CA:TRUE' in vault_cert_check.stdout }}"
+
+- name: Check SAN correctness
+  set_fact:
+    vault_cert_invalid: >-
+      {{
+        vault_cert_invalid or
+        ('vault.service.consul' not in vault_cert_check.stdout)  or
+        ('TLS Web Server Authentication' not in vault_cert_check.stdout) or
+        ('home.arpa' not in vault_cert_check.stdout)
+      }}
+
+- name: Build SAN IP list
+  set_fact:
+    vault_san_ips: >-
+      {{
+        ['127.0.0.1']
+        + (ansible_all_ipv4_addresses | default([]))
+      }}
+
+- name: Build SAN IP lines
+  set_fact:
+    vault_san_ip_lines: "{{ query('sequence', 'start=1 count=' ~ vault_san_ips | length) | zip(vault_san_ips) | map('join', ' = ') | map('regex_replace', '^(\\d+) = (.*)$', 'IP.\\1 = \\2') | list }}"
+
+- name: Build SAN DNS lines
+  set_fact:
+    vault_san_dns_lines:
+      - "DNS.1 = {{ ansible_hostname }}"
+      - "DNS.2 = {{ inventory_hostname }}"
+      - "DNS.3 = vault.service.consul"
+      - "DNS.4 = vault.service.consul.home.arpa"
+      - "DNS.5 = vault.{{ ansible_hostname }}.home.arpa"
+
+- name: Build SAN lines
+  set_fact:
+    vault_san_lines: >-
+      {{
+        ['subjectAltName = @alt_names', '', '[alt_names]']
+        + vault_san_dns_lines
+        + vault_san_ip_lines
+      }}
+
+- name: Create Vault TLS extension config
+  ansible.builtin.copy:
+    dest: /etc/vault.d/tls/vault.ext
+    content: "{{ (
+      [
+      'basicConstraints=critical,CA:FALSE',
+      'keyUsage = critical, keyCertSign, cRLSign, digitalSignature, keyEncipherment',
+      'extendedKeyUsage = serverAuth',
+      ''
+      ]
+      + vault_san_lines
+      ) | join('\n') + '\n' }}"
+    mode: "0644"
+
+- name: Generate bootstrap Vault key
   ansible.builtin.command: >
-    openssl req -x509 -nodes -days 3650
-    -newkey rsa:4096
-    -keyout /etc/vault.d/tls/vault.key
-    -out {{nomad_server.vault.crt_path}}
-    -subj "/CN={{ ansible_hostname }}"
-    -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:{{ inventory_hostname }},DNS:vault.service.consul,IP:127.0.0.1,IP:{{ ansible_default_ipv4.address }}"
+    openssl genrsa -out /etc/vault.d/tls/vault.key 4096
   args:
-    creates: "{{nomad_server.vault.crt_path}}"
+    creates: /etc/vault.d/tls/vault.key
+  when: vault_cert_invalid or not lookup('file', '/etc/vault.d/tls/vault.crt', errors='ignore')
+
+- name: Generate bootstrap CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key /etc/vault.d/tls/vault.key
+    -out /etc/vault.d/tls/vault.csr
+    -subj "/CN={{ ansible_hostname }}"
+  args:
+    creates: /etc/vault.d/tls/vault.csr
+  when: vault_cert_invalid or not lookup('file', '/etc/vault.d/tls/vault.crt', errors='ignore')
+
+- name: Generate self-signed bootstrap cert
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in /etc/vault.d/tls/vault.csr
+    -signkey /etc/vault.d/tls/vault.key
+    -out {{ nomad_server.vault.crt_path }}
+    -days 3650
+    -extfile /etc/vault.d/tls/vault.ext
+  args:
+    creates: "{{ nomad_server.vault.crt_path }}"
+  when: vault_cert_invalid or not lookup('file', '/etc/vault.d/tls/vault.crt', errors='ignore')
 
 - name: Set vault.key file permissions
   ansible.builtin.file:
@@ -66,6 +148,8 @@
   ansible.builtin.template:
     src: "{{ role_path }}/templates/vault.hcl.j2"
     dest: /etc/vault.d/vault.hcl
+    owner: "{{ vault_user.name }}"
+    group: "{{ vault_user.group }}"
     mode: "0640"
 
 - name: Enable and start Vault service
@@ -110,17 +194,22 @@
     state: restarted
     daemon_reload: true
 
-- name: Check Vault status (127.0.0.1 to avoid DNS/TLS issues)
+- name: Check Vault status
   ansible.builtin.command: vault status -format=json
-  register: vault_status
   environment:
     VAULT_ADDR: "https://127.0.0.1:8200"
-  changed_when: false
+    VAULT_SKIP_VERIFY: "true"
+  register: vault_status
   failed_when: false
+  changed_when: false
 
 - name: Parse Vault status JSON
   ansible.builtin.set_fact:
-    vault_status_parsed: "{{ vault_status.stdout | from_json }}"
+    vault_status_parsed: "{{ vault_status.stdout | default('{}') | from_json }}"
+
+- name: Print Vault status
+  ansible.builtin.debug:
+    msg: "{{ vault_status_parsed }}"
 
 - name: Unseal Vault (Loops through keys until unsealed)
   ansible.builtin.command: "vault operator unseal {{ item }}"
@@ -129,7 +218,7 @@
   environment:
     VAULT_ADDR: "https://127.0.0.1:8200"
   register: vault_unseal_result
-  no_log: true
+  no_log: false
   changed_when: false
 
 - name: Verify Vault is now unsealed
