@@ -1,3 +1,47 @@
+#!/bin/bash
+
+export VAULT_ADDR="https://127.0.0.1:8200"
+export VAULT_SKIP_VERIFY=true
+
+echo "Waiting for Vault API..."
+
+# wait until Vault responds at all
+until curl -sk $VAULT_ADDR/v1/sys/health >/dev/null; do
+  sleep 2
+done
+
+echo "Vault is reachable."
+
+# get current state
+health=$(curl -sk $VAULT_ADDR/v1/sys/health)
+
+sealed=$(echo "$health" | jq -r '.sealed')
+initialized=$(echo "$health" | jq -r '.initialized')
+
+echo "Initialized: $initialized"
+echo "Sealed: $sealed"
+
+# if not initialized, stop (something is wrong)
+if [ "$initialized" != "true" ]; then
+  echo "Vault is not initialized. Exiting."
+  exit 1
+fi
+
+# if already unsealed, do nothing
+if [ "$sealed" != "true" ]; then
+  echo "Vault already unsealed. Nothing to do."
+  exit 0
+fi
+
+echo "Vault is sealed. Unsealing..."
+
 {% for key in nomad_server.vault.unseal_keys %}
-  vault operator unseal '{{ key }}' >/dev/null 2>&1 || true
+vault operator unseal '{{ key }}' >/dev/null 2>&1 || true
 {% endfor %}
+
+if vault status | grep -q 'Sealed.*false'; then
+  echo "Unseal successful"
+else
+  echo "Unseal FAILED"
+  exit 1
+fi
