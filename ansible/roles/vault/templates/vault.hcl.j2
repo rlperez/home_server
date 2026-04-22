@@ -2,14 +2,11 @@ ui = true
 disable_mlock = true
 
 listener "tcp" {
-  address     = "0.0.0.0:8200"
-  tls_disable = 0
-  tls_cert_file = "{{nomad_server.vault.crt_path}}"
-  tls_key_file  = "/etc/vault.d/tls/vault.key"
-}
+  address = "0.0.0.0:8200"
 
-service_registration "consul" {
-  address = "127.0.0.1:8500"
+  tls_cert_file = "/etc/vault.d/tls/vault.crt"
+  tls_key_file  = "/etc/vault.d/tls/vault.key"
+  tls_disable_client_certs = true
 }
 
 storage "raft" {
@@ -17,5 +14,5 @@ storage "raft" {
   node_id = "{{ ansible_hostname }}"
 }
 
-api_addr = "https://{{ ansible_default_ipv4.address }}:8200"
-cluster_addr = "http://{{ ansible_default_ipv4.address }}:8201"
+api_addr     = "https://{{ ansible_default_ipv4.address }}:8200"
+cluster_addr = "https://{{ ansible_default_ipv4.address }}:8201"
