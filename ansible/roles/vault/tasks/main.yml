@@ -218,7 +218,7 @@
   environment:
     VAULT_ADDR: "https://127.0.0.1:8200"
   register: vault_unseal_result
-  no_log: false
+  no_log: true
   changed_when: false
 
 - name: Verify Vault is now unsealed
@@ -247,33 +247,16 @@
   delay: 3
   until: vault_dns.stdout | trim | length > 0
 
-- name: Wait for system resolver to resolve .consul domain
-  ansible.builtin.command: getent ahostsv4 {{ nomad_server.vault.hostname }}
-  register: vault_resolved_dns
-  changed_when: false
-  failed_when: false
-  retries: 20
-  delay: 3
-  until: vault_resolved_dns.rc == 0 and (vault_resolved_dns.stdout | length > 0)
-
-- name: Wait for Vault API to be ready via Hostname
+- name: Wait for Vault API to be ready
   ansible.builtin.uri:
-    url: "https://{{ nomad_server.vault.hostname }}:8200/v1/sys/health?standbyok=true"
+    url: "https://127.0.0.1:8200/v1/sys/health?standbyok=true"
     method: GET
-    validate_certs: true
+    validate_certs: false
     status_code: [200, 429]
   register: vault_health
   until: vault_health.status in [200, 429]
   retries: 30
   delay: 5
-
-- name: Check Vault status via Hostname
-  ansible.builtin.command: vault status -format=json
-  environment:
-    VAULT_ADDR: "https://{{ nomad_server.vault.hostname }}:8200"
-  register: vault_final_vault_status
-  changed_when: false
-  failed_when: false
 
 - name: Check Vault service registration in Consul
   ansible.builtin.command: consul catalog services
