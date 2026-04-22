@@ -224,6 +224,7 @@
 - name: Verify Vault is now unsealed
   ansible.builtin.command: vault status -format=json
   environment:
+    VAULT_SKIP_VERIFY: "true"
     VAULT_ADDR: "https://127.0.0.1:8200"
   register: vault_status_after
   changed_when: false
@@ -231,7 +232,7 @@
 
 - name: Parse post-unseal status
   ansible.builtin.set_fact:
-    vault_status_after_parsed: "{{ vault_status_after.stdout | from_json }}"
+    vault_status_after_parsed: "{{ vault_status_after.stdout | default('{}') | from_json }}"
 
 - name: Fail if still sealed
   ansible.builtin.fail:
