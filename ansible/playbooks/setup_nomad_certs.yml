@@ -1,6 +1,6 @@
 ---
 - name: Rotate Nomad Certificates
-  hosts: "{{ target_host | default('all') }}"
+  hosts: "{{ target_host | default('nomad_servers') }}"
   gather_facts: true
   become: true
 
