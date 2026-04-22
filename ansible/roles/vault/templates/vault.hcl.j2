@@ -9,6 +9,10 @@ listener "tcp" {
   tls_disable_client_certs = true
 }
 
+service_registration "consul" {
+  address = "127.0.0.1:8500"
+}
+
 storage "raft" {
   path    = "/opt/vault/data"
   node_id = "{{ ansible_hostname }}"
