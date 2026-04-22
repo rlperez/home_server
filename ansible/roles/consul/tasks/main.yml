@@ -108,6 +108,7 @@
     url: http://127.0.0.1:8500/ui
     method: GET
     status_code: [200, 429]
+    validate_certs: false
     return_content: true
   register: consul_response
   until: consul_response.status == 200
