@@ -1,7 +1,7 @@
 # roles/coredns/templates/Corefile.j2
 home.arpa:53 {
     errors
-    hosts /etc/coredns/hosts {
+    hosts /opt/coredns/hosts {
         ttl 60
         reload 5m
     }
