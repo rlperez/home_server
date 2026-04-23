@@ -3,6 +3,7 @@
   ansible.builtin.uri:
     url: "{{ nomad_server.vault.addr }}/v1/sys/health"
     method: GET
+    validate_certs: false
   register: vault_health
   retries: 10
   delay: 5
@@ -34,17 +35,16 @@
 
 - name: Set certificate SANs
   ansible.builtin.set_fact:
-    cert_alt_names: >-
-      localhost,
-      {{ ansible_hostname }},
-      {{ ansible_hostname }}.home.arpa,
-      {{ ansible_hostname }}.node.consul,
-      {{ ansible_hostname }}.lan,
-      nomad,
-      nomad.service.consul,
-      nomad.service.consul.home.arpa,
-      nomad.{{ ansible_hostname }}.home.arpa,
-      nomad.home.arpa
+    cert_alt_names:
+      - localhost
+      - "{{ ansible_hostname }}"
+      - "{{ ansible_hostname }}.home.arpa"
+      - "{{ ansible_hostname }}.node.consul"
+      - "{{ ansible_hostname }}.lan"
+      - nomad.service.consul
+      - nomad.service.consul.home.arpa
+      - nomad.{{ ansible_hostname }}.home.arpa
+      - nomad.home.arpa
     cert_ip_sans: "127.0.0.1,{{ ansible_default_ipv4.address }}{{ ',' + (ansible_all_ipv6_addresses | join(',')) if ansible_all_ipv6_addresses else '' }}"
   when: cert_needs_renewal | default(true)
 
@@ -63,6 +63,7 @@
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
+    validate_certs: false
     path: pki/roles/nomad
     data:
       allowed_domains: ["node.consul", "consul", "home.arpa", "lan", "{{ ansible_hostname }}"]
@@ -80,8 +81,8 @@
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
-    path: sys/policies/acl/nomad-cluster
     validate_certs: false
+    path: sys/policies/acl/nomad-cluster
     data:
       policy: |
         path "secret/data/nomad/*" { capabilities = ["read", "list"] }
@@ -127,12 +128,13 @@
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
     token: "{{ nomad_server.vault.root_token }}"
+    validate_certs: false
     path: pki/issue/nomad
     data:
       common_name: "{{ ansible_hostname }}.home.arpa"
-      alt_names: "{{ cert_alt_names }}"
+      alt_names: "{{ cert_alt_names | join(',') }}"
       ip_sans: "{{ cert_ip_sans }}"
-      ttl: "87500h"
+      ttl: "87000h"
   register: nomad_cert
   no_log: true
   when: cert_needs_renewal | default(true)
