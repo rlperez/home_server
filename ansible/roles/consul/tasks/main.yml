@@ -46,7 +46,6 @@
       [Resolve]
       DNS={{ nomad_server.consul.dns_addr }}
       Domains=~consul
-      DNSStubListenerExtra=0.0.0.0:53
   notify: Restart systemd-resolved
 
 - name: Flush handlers
