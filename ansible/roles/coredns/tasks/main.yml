@@ -10,6 +10,32 @@
     - "{{ coredns_config.path }}"
     - "{{ coredns_config.nomad_job_path | dirname }}"
 
+- name: Ensure systemd-resolved is running
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: started
+    enabled: true
+
+- name: Configure upstream DNS for resolved
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/dns.conf
+    content: |
+      [Resolve]
+      DNS=9.9.9.9 149.112.112.112
+      FallbackDNS=1.1.1.2 1.0.0.2
+
+- name: Restart resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
+
+- name: Ensure resolv.conf is managed by resolved
+  ansible.builtin.file:
+    src: /run/systemd/resolve/stub-resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+
 - name: Render CoreDNS Corefile
   ansible.builtin.template:
     src: "{{ role_path }}/templates/Corefile.j2"
@@ -19,23 +45,14 @@
     mode: "0644"
   notify: Run CoreDNS Nomad job
 
-- name: Render CoreDNS hosts file
+- name: Render CoreDNS zone file
   ansible.builtin.template:
-    src: "{{ role_path }}/templates/hosts.j2"
-    dest: "{{ coredns_config.path }}/hosts"
+    src: "{{ role_path }}/templates/home.arpa.db.j2"
+    dest: "{{ coredns_config.path }}/home.arpa.db"
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
   notify: Run CoreDNS Nomad job
-
-- name: Ensure hosts file exists (even if empty)
-  ansible.builtin.file:
-    path: "{{ coredns_config.path }}/hosts"
-    state: touch
-    owner: root
-    group: root
-    mode: "0644"
-  become: true
 
 - name: Render Nomad job file
   ansible.builtin.template:
@@ -70,17 +87,6 @@
     state: enabled
     immediate: true
   when: firewalld_state.stdout == "running"
-
-- name: Stop and disable systemd-resolved
-  ansible.builtin.systemd:
-    name: systemd-resolved
-    state: stopped
-    enabled: false
-
-- name: Remove symlink for /etc/resolv.conf
-  ansible.builtin.file:
-    path: /etc/resolv.conf
-    state: absent
 
 - name: Get current active connection name for interface {{ ansible_default_ipv4.interface }}
   ansible.builtin.command: "nmcli -g GENERAL.CONNECTION device show {{ ansible_default_ipv4.interface }}"
