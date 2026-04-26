@@ -1,10 +1,10 @@
 # roles/coredns/templates/Corefile.j2
-home.arpa:53 {
-    errors
-    hosts /opt/coredns/hosts {
-        ttl 60
+
+home.arpa {
+    file /etc/coredns/home.arpa.db {
         reload 5m
     }
+    errors
 }
 
 consul:53 {
@@ -15,7 +15,7 @@ consul:53 {
 
 .:53 {
     errors
-    log # enable only while testing; disable for normal use to reduce noise/memory
+    # log # enable only while testing; disable for normal use to reduce noise/memory
     health :8080
     ready :8181
     prometheus :9153

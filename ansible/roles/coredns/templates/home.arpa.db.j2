@@ -1,0 +1,14 @@
+$ORIGIN home.arpa.
+@   IN SOA ns1.home.arpa. admin.home.arpa. (
+        2026042201 ; serial
+        3600
+        600
+        604800
+        86400 )
+
+    IN NS ns1.home.arpa.
+
+ns1 IN A {{ ansible_default_ipv4.address }}
+
+vault   IN {{ ansible_default_ipv4.address }}
+nomad   IN {{ ansible_default_ipv4.address }}

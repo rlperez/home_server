@@ -54,7 +54,7 @@ job "coredns" {
           "{{ coredns_config.path }}/Corefile:/etc/coredns/Corefile:ro,Z",
           "{{ coredns_config.path }}/hosts:/etc/coredns/hosts:ro,Z",
           "/opt/nomad/jobs/coredns/data:/opt/nomad/jobs/coredns/data",
-
+          "{{ coredns_config.path }}/home.arpa.db:/etc/coredns/home.arpa.db"
         ]
       }
 
