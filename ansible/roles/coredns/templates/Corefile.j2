@@ -1,6 +1,6 @@
 # roles/coredns/templates/Corefile.j2
 
-home.arpa {
+home.arpa:53 {
     file /etc/coredns/home.arpa.db {
         reload 5m
     }

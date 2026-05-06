@@ -14,11 +14,12 @@ job "coredns" {
       name = "coredns"
       port = "dns"
       tags = ["dns", "infra"]
+      address_mode = "host"
 
       check {
         name     = "tcp-53"
         type     = "tcp"
-        port     = "dns"
+        port     = "53"
         interval = "10s"
         timeout  = "2s"
       }
@@ -49,10 +50,10 @@ job "coredns" {
         image        = "docker.io/coredns/coredns:latest"
         network_mode = "host"
         args         = ["-conf", "/etc/coredns/Corefile"]
+        cap_add      = ["NET_BIND_SERVICE"]
 
         volumes = [
           "{{ coredns_config.path }}/Corefile:/etc/coredns/Corefile:ro,Z",
-          "{{ coredns_config.path }}/hosts:/etc/coredns/hosts:ro,Z",
           "/opt/nomad/jobs/coredns/data:/opt/nomad/jobs/coredns/data",
           "{{ coredns_config.path }}/home.arpa.db:/etc/coredns/home.arpa.db"
         ]
