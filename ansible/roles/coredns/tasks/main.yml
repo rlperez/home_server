@@ -10,24 +10,28 @@
     - "{{ coredns_config.path }}"
     - "{{ coredns_config.nomad_job_path | dirname }}"
 
-- name: Ensure systemd-resolved is running
-  ansible.builtin.systemd:
-    name: systemd-resolved
-    state: started
-    enabled: true
+- name: Disable systemd-resolved stub listener (free port 53 FIRST)
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/00-no-stub.conf
+    mode: "0644"
+    content: |
+      [Resolve]
+      DNSStubListener=no
 
 - name: Configure upstream DNS for resolved
   ansible.builtin.copy:
-    dest: /etc/systemd/resolved.conf.d/dns.conf
+    dest: /etc/systemd/resolved.conf.d/10-upstream.conf
+    mode: "0644"
     content: |
       [Resolve]
       DNS=9.9.9.9 149.112.112.112
       FallbackDNS=1.1.1.2 1.0.0.2
 
-- name: Restart resolved
+- name: Restart systemd-resolved (apply config once)
   ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
+    enabled: true
 
 - name: Ensure resolv.conf is managed by resolved
   ansible.builtin.file:
@@ -43,7 +47,6 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
-  notify: Run CoreDNS Nomad job
 
 - name: Render CoreDNS zone file
   ansible.builtin.template:
@@ -52,7 +55,6 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
-  notify: Run CoreDNS Nomad job
 
 - name: Render Nomad job file
   ansible.builtin.template:
@@ -61,7 +63,14 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
-  notify: Run CoreDNS Nomad job
+
+- name: Render Nomad job file
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/coredns.nomad.j2"
+    dest: "{{ coredns_config.nomad_job_path }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
 
 - name: Read Nomad bootstrap token from remote server
   ansible.builtin.slurp:
@@ -101,3 +110,53 @@
     ip6: "fd00:1::{{ '%02x' | format(ansible_facts.default_ipv4.address.split('.')[-1] | int) }}/64"
     method6: manual
     state: present
+
+- name: Restart systemd-resolved (free port 53)
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
+
+- name: Check port 53 usage
+  ansible.builtin.command: ss -ltnup
+  register: port_check
+  changed_when: false
+
+- debug:
+    var: port_check.stdout
+
+- name: Run CoreDNS Nomad job
+  ansible.builtin.command: nomad job run {{ coredns_config.nomad_job_path }}
+  environment:
+    NOMAD_ADDR: "https://127.0.0.1:4646"
+    NOMAD_SKIP_VERIFY: true
+    NOMAD_TOKEN: "{{ nomad_management_token }}"
+  register: nomad_run
+  changed_when: true
+
+- name: Wait for CoreDNS TCP
+  wait_for:
+    host: 127.0.0.1
+    port: 53
+    timeout: 60
+
+- name: Wait for DNS to actually respond
+  command: dig @127.0.0.1 home.arpa
+  register: dns_check
+  retries: 10
+  delay: 3
+  until: dns_check.rc == 0
+
+- name: Force systemd-resolved to use CoreDNS only for LAN
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/00-coredns.conf
+    mode: "0644"
+    content: |
+      [Resolve]
+      DNS=127.0.0.1
+      FallbackDNS=
+      Domains=~home.arpa ~consul
+
+- name: Restart systemd-resolved (use CoreDNS)
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
