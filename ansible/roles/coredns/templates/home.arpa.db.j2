@@ -1,4 +1,6 @@
 $ORIGIN home.arpa.
+$TTL 300
+
 @   IN SOA ns1.home.arpa. admin.home.arpa. (
         2026042201 ; serial
         3600
@@ -10,5 +12,6 @@ $ORIGIN home.arpa.
 
 ns1 IN A {{ ansible_default_ipv4.address }}
 
-vault   IN {{ ansible_default_ipv4.address }}
-nomad   IN {{ ansible_default_ipv4.address }}
+vault   IN A {{ ansible_default_ipv4.address }}
+nomad   IN A {{ ansible_default_ipv4.address }}
+*.home.arpa IN A {{ ansible_default_ipv4.address }}
