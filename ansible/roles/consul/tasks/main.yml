@@ -46,7 +46,6 @@
       [Resolve]
       DNS={{ nomad_server.consul.dns_addr }}
       Domains=~consul
-      DNSStubListenerExtra=0.0.0.0:53
   notify: Restart systemd-resolved
 
 - name: Flush handlers
@@ -105,9 +104,10 @@
 
 - name: Check that Consul UI is accessible
   ansible.builtin.uri:
-    url: https://127.0.0.1:8500/ui
+    url: http://127.0.0.1:8500/ui
     method: GET
     status_code: [200, 429]
+    validate_certs: false
     return_content: true
   register: consul_response
   until: consul_response.status == 200

@@ -3,6 +3,8 @@
   ansible.builtin.uri:
     url: "{{ nomad_server.vault.addr }}/v1/sys/health"
     method: GET
+    validate_certs: false
+    status_code: [200, 429]
   register: vault_health
   retries: 10
   delay: 5

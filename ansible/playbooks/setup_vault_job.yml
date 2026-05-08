@@ -1,0 +1,8 @@
+---
+- name: Setup Vault Job
+  hosts: "{{ target_hosts | default('nomad_servers') }}"
+  become: true
+  gather_facts: yes
+  roles:
+    - vault
+    - vault_pki
