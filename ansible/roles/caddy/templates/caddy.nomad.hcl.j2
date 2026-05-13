@@ -1,0 +1,89 @@
+job "{{ caddy_config.job_name }}" {
+  datacenters = [{% for dc in caddy_config.datacenters %}"{{ dc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  type = "{{ caddy_config.job_type }}"
+
+  group "caddy" {
+    count = 1
+
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "15s"
+      mode     = "delay"
+    }
+
+    update {
+      max_parallel      = 1
+      stagger           = "30s"
+      health_check      = "checks"
+      healthy_deadline  = "5m"
+      progress_deadline = "10m"
+      auto_revert       = true
+    }
+
+    network {
+      mode = "host"
+
+      port "http" {
+        static = {{ caddy_config.http_port }}
+      }
+
+      port "https" {
+        static = {{ caddy_config.https_port }}
+      }
+
+      port "admin" {
+        static = {{ caddy_config.admin_port }}
+      }
+    }
+
+    {% for constraint in caddy_config.constraints %}
+    constraint {
+      attribute = "{{ constraint.attribute }}"
+      operator  = "{{ constraint.operator }}"
+      value     = "{{ constraint.value }}"
+    }
+    {% endfor %}
+
+    task "caddy" {
+      driver = "podman"
+
+      config {
+        image = "{{ caddy_config.image }}"
+        network_mode = "host"
+
+        volumes = [
+          "{{ caddy_config.data_dir }}/Caddyfile:/etc/caddy/Caddyfile:ro",
+          "{{ caddy_config.data_dir }}/data:/data",
+          "{{ caddy_config.data_dir }}/config:/config"
+        ]
+      }
+
+      resources {
+        cpu    = 250
+        memory = 256
+      }
+
+      service {
+        name = "caddy"
+        port = "https"
+
+        tags = [
+          "ingress",
+          "https"
+        ]
+
+        check {
+            type     = "tcp"
+            interval = "30s"
+            timeout  = "5s"
+        }
+      }
+
+      logs {
+        max_files     = 10
+        max_file_size = 10
+      }
+    }
+  }
+}

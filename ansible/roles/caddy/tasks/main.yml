@@ -1,0 +1,32 @@
+---
+- name: Create caddy directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ caddy_config.data_dir }}"
+    - "{{ caddy_config.data_dir }}/data"
+    - "{{ caddy_config.data_dir }}/config"
+
+- name: Render Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ caddy_config.data_dir }}/Caddyfile"
+    mode: "0644"
+
+- name: Render Nomad job
+  ansible.builtin.template:
+    src: caddy.nomad.hcl.j2
+    dest: "/tmp/{{ caddy_config.job_name }}.nomad.hcl"
+    mode: "0644"
+
+- name: Deploy caddy job
+  ansible.builtin.command:
+    cmd: >
+      nomad job run
+      -namespace={{ caddy_config.nomad_namespace }}
+      /tmp/{{ caddy_config.job_name }}.nomad.hcl
+  register: caddy_job_run
+  changed_when: >
+    "Evaluation ID" in caddy_job_run.stdout
