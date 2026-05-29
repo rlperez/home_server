@@ -2,6 +2,6 @@
 - name: Setup CoreDNS Job
   hosts: "{{ target_hosts | default('nomad_servers') }}"
   become: true
-  gather_facts: yes
+  gather_facts: true
   roles:
     - coredns
