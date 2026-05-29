@@ -1,5 +1,6 @@
 ---
 caddy_config:
+  nomad_job_path: /etc/nomad.d/jobs/caddy.nomad
   job_name: caddy
   datacenters:
     - homelab
@@ -9,11 +10,11 @@ caddy_config:
   email: rlperez@kablamo.me
   upstreams:
     - host: vault.home.arpa
-      upstream: "127.0.0.1:8200"
+      upstream: "https://127.0.0.1:8200"
     - host: nomad.home.arpa
-      upstream: "127.0.0.1:4646"
+      upstream: "https://127.0.0.1:4646"
     - host: consul.home.arpa
-      upstream: "127.0.0.1:8500"
+      upstream: "https://127.0.0.1:8500"
   http_port: 80
   https_port: 443
   admin_port: 2019
