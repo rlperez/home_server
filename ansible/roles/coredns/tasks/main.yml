@@ -64,14 +64,6 @@
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
 
-- name: Render Nomad job file
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/coredns.nomad.j2"
-    dest: "{{ coredns_config.nomad_job_path }}"
-    owner: "{{ nomad_server.nomad.user.name }}"
-    group: "{{ nomad_server.nomad.user.group }}"
-    mode: "0644"
-
 - name: Read Nomad bootstrap token from remote server
   ansible.builtin.slurp:
     src: /etc/nomad.d/nomad-management-token.txt
@@ -127,8 +119,8 @@
 - name: Run CoreDNS Nomad job
   ansible.builtin.command: nomad job run {{ coredns_config.nomad_job_path }}
   environment:
-    NOMAD_ADDR: "https://127.0.0.1:4646"
-    NOMAD_SKIP_VERIFY: true
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
     NOMAD_TOKEN: "{{ nomad_management_token }}"
   register: nomad_run
   changed_when: true
