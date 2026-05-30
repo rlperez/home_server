@@ -53,9 +53,9 @@ job "{{ caddy_config.job_name }}" {
         network_mode = "host"
 
         volumes = [
-          "{{ caddy_config.data_dir }}/Caddyfile:/etc/caddy/Caddyfile:ro",
-          "{{ caddy_config.data_dir }}/data:/data",
-          "{{ caddy_config.data_dir }}/config:/config"
+          "{{ caddy_config.data_dir }}/Caddyfile:/etc/caddy/Caddyfile:ro,Z",
+          "{{ caddy_config.data_dir }}/data:/data:Z",
+          "{{ caddy_config.data_dir }}/config:/config:Z"
         ]
       }
 
