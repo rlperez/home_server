@@ -21,7 +21,7 @@
 
 - name: Render Nomad job
   ansible.builtin.template:
-    src: "{{ role_path }}/templates/caddy.nomad.hcl.j2"
+    src: "{{ role_path }}/templates/caddy.nomad.j2"
     dest: "{{ caddy_config.nomad_job_path }}"
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
@@ -29,6 +29,17 @@
 
 - debug:
     var: nomad_server.nomad.addr
+
+- name: Read Nomad bootstrap token from remote server
+  ansible.builtin.slurp:
+    src: /etc/nomad.d/nomad-management-token.txt
+  register: nomad_token_slurp
+  no_log: true
+
+- name: Set Nomad token fact
+  ansible.builtin.set_fact:
+    nomad_management_token: "{{ (nomad_token_slurp.content | b64decode | from_json).SecretID }}"
+  no_log: true
 
 - name: Ensure ingress namespace exists
   environment:
