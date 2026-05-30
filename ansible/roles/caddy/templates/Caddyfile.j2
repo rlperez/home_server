@@ -17,8 +17,6 @@
     encode gzip zstd
 
     reverse_proxy {{ site.upstream }} {
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Forwarded-Host {host}
     }
 
     header {
