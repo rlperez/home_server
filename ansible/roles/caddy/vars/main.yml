@@ -4,7 +4,7 @@ caddy_config:
   job_name: caddy
   datacenters:
     - homelab
-  image: docker.io/library/caddy:2.10
+  image: docker.io/library/caddy:2-alpine
   nomad_namespace: ingress
   data_dir: /opt/caddy
   email: rlperez@kablamo.me
