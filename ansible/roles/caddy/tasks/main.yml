@@ -1,4 +1,15 @@
 ---
+- name: Install Caddy dependencies
+  become: true
+  ansible.builtin.dnf5:
+    name:
+      - nomad
+      - nomad-driver-podman
+      - nomad-autoscaler
+      - consul-cni
+      - containernetworking-plugins
+    state: present
+
 - name: Create caddy directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -55,6 +66,16 @@
   register: nomad_namespace_apply
   changed_when: >
     "Successfully applied namespace" in nomad_namespace_apply.stdout
+
+- name: Allow web services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - http
+    - https
 
 - name: Run Caddy Nomad job
   environment:
