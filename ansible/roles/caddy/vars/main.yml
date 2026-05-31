@@ -10,11 +10,14 @@ caddy_config:
   email: rlperez@kablamo.me
   upstreams:
     - host: vault.home.arpa
-      upstream: "https://127.0.0.1:8200"
+      upstream: "127.0.0.1:8200"
+      tls_upstream: true
     - host: nomad.home.arpa
-      upstream: "https://127.0.0.1:4646"
+      upstream: "127.0.0.1:4646"
+      tls_upstream: true
     - host: consul.home.arpa
-      upstream: "https://127.0.0.1:8500"
+      upstream: "127.0.0.1:8500"
+      tls_upstream: false
   http_port: 80
   https_port: 443
   admin_port: 2019

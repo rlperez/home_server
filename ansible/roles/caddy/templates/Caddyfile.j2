@@ -17,6 +17,12 @@
     encode gzip zstd
 
     reverse_proxy {{ site.upstream }} {
+        {% if site.tls_upstream %}
+        transport http {
+           tls
+           tls_insecure_skip_verify
+        }
+        {% endif %}
     }
 
     header {
