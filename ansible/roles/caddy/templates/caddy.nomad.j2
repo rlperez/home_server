@@ -74,8 +74,7 @@ job "{{ caddy_config.job_name }}" {
         ]
 
         check {
-          type     = "http"
-          path     = "/"
+          type     = "tcp"
           interval = "30s"
           timeout  = "5s"
         }
