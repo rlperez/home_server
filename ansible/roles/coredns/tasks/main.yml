@@ -47,6 +47,7 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
+  register: coredns_config
 
 - name: Render CoreDNS zone file
   ansible.builtin.template:
@@ -55,6 +56,7 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
+  register: coredns_zone_config
 
 - name: Render Nomad job file
   ansible.builtin.template:
@@ -63,6 +65,7 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
+  register: coredns_job
 
 - name: Read Nomad bootstrap token from remote server
   ansible.builtin.slurp:
@@ -124,6 +127,7 @@
     NOMAD_TOKEN: "{{ nomad_management_token }}"
   register: nomad_run
   changed_when: true
+  when: coredns_config.changed or coredns_zone_config.changed or coredns_job.changed
 
 - name: Wait for CoreDNS TCP
   wait_for:

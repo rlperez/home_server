@@ -29,6 +29,7 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
+  register: caddy_config
 
 - name: Render Nomad job
   ansible.builtin.template:
@@ -37,8 +38,10 @@
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
+  register: caddy_job
 
-- debug:
+- name: Debug Nomad server address
+  ansible.builtin.debug:
     var: nomad_server.nomad.addr
 
 - name: Read Nomad bootstrap token from remote server
@@ -91,3 +94,4 @@
   changed_when: >
     caddy_job_run.stdout is defined and
     "Evaluation ID" in caddy_job_run.stdout
+  when: caddy_job.changed or caddy_config.changed
