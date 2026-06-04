@@ -47,7 +47,7 @@ job "coredns" {
       driver = "podman"
 
       config {
-        image        = "docker.io/coredns/coredns:latest"
+        image        = "{{ coredns_config.image }}"
         network_mode = "host"
         args         = ["-conf", "/etc/coredns/Corefile"]
         cap_add      = ["NET_BIND_SERVICE"]
