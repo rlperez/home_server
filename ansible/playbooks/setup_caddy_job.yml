@@ -1,7 +1,7 @@
 ---
-- name: Setup CoreDNS Job
+- name: Setup Caddy Job
   hosts: "{{ target_hosts | default('nomad_servers') }}"
   become: true
   gather_facts: true
   roles:
-    - coredns
+    - caddy

@@ -1,0 +1,97 @@
+---
+- name: Install Caddy dependencies
+  become: true
+  ansible.builtin.dnf5:
+    name:
+      - nomad
+      - nomad-driver-podman
+      - nomad-autoscaler
+      - consul-cni
+      - containernetworking-plugins
+    state: present
+
+- name: Create caddy directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0755"
+  loop:
+    - "{{ caddy_config.data_dir }}"
+    - "{{ caddy_config.data_dir }}/data"
+    - "{{ caddy_config.data_dir }}/config"
+
+- name: Render Caddyfile
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/Caddyfile.j2"
+    dest: "{{ caddy_config.data_dir }}/Caddyfile"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
+  register: caddy_config
+
+- name: Render Nomad job
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/caddy.nomad.j2"
+    dest: "{{ caddy_config.nomad_job_path }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0644"
+  register: caddy_job
+
+- name: Debug Nomad server address
+  ansible.builtin.debug:
+    var: nomad_server.nomad.addr
+
+- name: Read Nomad bootstrap token from remote server
+  ansible.builtin.slurp:
+    src: /etc/nomad.d/nomad-management-token.txt
+  register: nomad_token_slurp
+  no_log: true
+
+- name: Set Nomad token fact
+  ansible.builtin.set_fact:
+    nomad_management_token: "{{ (nomad_token_slurp.content | b64decode | from_json).SecretID }}"
+  no_log: true
+
+- name: Ensure ingress namespace exists
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_CACERT: "{{ nomad_server.nomad.vault.ca_file }}"
+    NOMAD_CLIENT_CERT: "{{ nomad_server.nomad.vault.cert_file }}"
+    NOMAD_CLIENT_KEY: "{{ nomad_server.nomad.vault.key_file }}"
+    NOMAD_TOKEN: "{{ nomad_management_token }}"
+  ansible.builtin.command:
+    cmd: >
+      nomad namespace apply {{ caddy_config.nomad_namespace }}
+  register: nomad_namespace_apply
+  changed_when: >
+    "Successfully applied namespace" in nomad_namespace_apply.stdout
+
+- name: Allow web services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - http
+    - https
+
+- name: Run Caddy Nomad job
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ nomad_management_token }}"
+  ansible.builtin.command:
+    cmd: >
+      nomad job run
+      -namespace={{ caddy_config.nomad_namespace }}
+      {{ caddy_config.nomad_job_path }}
+  register: caddy_job_run
+  changed_when: >
+    caddy_job_run.stdout is defined and
+    "Evaluation ID" in caddy_job_run.stdout
+  when: caddy_job.changed or caddy_config.changed

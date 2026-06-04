@@ -1,0 +1,35 @@
+{
+    email {{ caddy_config.email }}
+
+    admin localhost:{{ caddy_config.admin_port }}
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+{% for site in caddy_config.upstreams %}
+{{ site.host }} {
+
+    tls internal
+
+    encode gzip zstd
+
+    reverse_proxy {{ site.upstream }} {
+        {% if site.tls_upstream %}
+        transport http {
+           tls
+           tls_insecure_skip_verify
+        }
+        {% endif %}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000;"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
+{% endfor %}
