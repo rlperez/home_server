@@ -6,7 +6,7 @@ coredns_config:
   listen_ipv6: "::"
   cpu: 100
   memory: 256
-  image: docker.io/coredns/coredns:latest
+  image: docker.io/coredns/coredns:1.14.3
   go_mem_limit: "200MiB"
   upstream_dns:
     # Primary: Quad9 (Malware Blocked)
