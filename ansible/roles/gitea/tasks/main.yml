@@ -16,5 +16,6 @@
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0755"
   loop:
-    - /var/lib/gitea
-    - /var/log/gitea
+    - "{{ gitea_config.data_dir }}"
+    - "{{ gitea_config.data_dir }}/data"
+    - "{{ gitea_config.data_dir }}/config"

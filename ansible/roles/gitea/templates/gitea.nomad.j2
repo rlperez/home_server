@@ -8,6 +8,9 @@ job "gitea" {
       config {
         image = "{{ gitea_config.image }}"
       }
+      env {
+        GITEA_CUSTOM = "{{ gitea_config.data_dir }}"
+      }
     }
 
     service {
