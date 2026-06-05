@@ -1,0 +1,20 @@
+---
+- name: Install Caddy dependencies
+  become: true
+  ansible.builtin.dnf5:
+    name:
+      - nomad
+      - nomad-driver-podman
+      - nomad-autoscaler
+    state: present
+
+- name: Create Gitea directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0755"
+  loop:
+    - /var/lib/gitea
+    - /var/log/gitea

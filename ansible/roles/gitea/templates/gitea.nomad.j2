@@ -1,0 +1,28 @@
+job "gitea" {
+  datacenters = ["homelab"]
+  namespace   = "{{ nomad_namespace }}"
+
+  group "gitea" {
+    task "gitea" {
+      driver = "podman"
+      config {
+        image = "{{ gitea_config.image }}"
+      }
+    }
+
+    service {
+      name = "gitea"
+      port = "{{ gitea_config.port }}"
+      tags = ["gitea", "git", "development"]
+      address_mode = "host"
+
+      check {
+        type     = "http"
+        interval = "10s"
+        timeout  = "5s"
+        path     = "/api/healthz"
+        port     = "{{ gitea_config.port }}"
+      }
+    }
+  }
+}

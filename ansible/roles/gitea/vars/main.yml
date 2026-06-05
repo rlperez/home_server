@@ -1,0 +1,10 @@
+---
+gitea_config:
+  nomad_job_path: /etc/nomad.d/jobs/gitea.nomad
+  job_name: gitea
+  datacenters:
+    - homelab
+  image: docker.gitea.com/gitea:1.26.2-rootless
+  nomad_namespace: development
+  data_dir: /opt/gitea
+  port: 3000
