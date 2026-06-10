@@ -41,7 +41,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; App name that shows in every page title
-;APP_NAME = Gitea: Git with a cup of tea
+APP_NAME = Kablamo Gitea
 ;;
 ;; RUN_USER will automatically detect the current user - but you can set it here change it if you run locally
 ;RUN_USER =
@@ -60,10 +60,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; The protocol the server listens on. One of "http", "https", "http+unix", "fcgi" or "fcgi+unix".
-;PROTOCOL = http
+PROTOCOL = https
 ;;
 ;; Set the domain for the server.
-;DOMAIN = localhost
+DOMAIN = "{{ lookup('env', 'GITEA_DOMAIN') }}"
 ;;
 ;; The AppURL is used to generate public URL links, defaults to "{PROTOCOL}://{DOMAIN}:{HTTP_PORT}/".
 ;; Most users should set it to the real website URL of their Gitea instance when there is a reverse proxy.
@@ -86,10 +86,10 @@
 ;; The address to listen on. Either a IPv4/IPv6 address or the path to a unix socket.
 ;; If PROTOCOL is set to "http+unix" or "fcgi+unix", this should be the name of the Unix socket file to use.
 ;; Relative paths will be made absolute against the _`AppWorkPath`_.
-;HTTP_ADDR = 0.0.0.0
+HTTP_ADDR = "{{ lookup('env', 'GITEA_HTTP_ADDR') }}"
 ;;
 ;; The port to listen on for "http" or "https" protocol. Leave empty when using a unix socket.
-;HTTP_PORT = 3000
+HTTP_PORT = 3000
 ;;
 ;; Expect PROXY protocol headers on connections
 ;USE_PROXY_PROTOCOL = false
@@ -148,7 +148,7 @@
 ;DISABLE_SSH = false
 ;;
 ;; Whether to use the builtin SSH server or not.
-;START_SSH_SERVER = false
+START_SSH_SERVER = false
 ;;
 ;; Expect PROXY protocol header on connections to the built-in SSH server
 ;SSH_SERVER_USE_PROXY_PROTOCOL = false
@@ -157,17 +157,17 @@
 ;BUILTIN_SSH_SERVER_USER =
 ;;
 ;; Domain name to be exposed in clone URL, defaults to DOMAIN or the domain part of ROOT_URL
-;SSH_DOMAIN =
+SSH_DOMAIN = "{{ lookup('env', 'GITEA_DOMAIN') }}"
 ;;
 ;; Port number to be exposed in clone URL.
 ;; If you need a different "SSH clone port" from the real "SSH listen port", set the SSH_LISTEN_PORT separately.
-;SSH_PORT = 22
+SSH_PORT = 22
 ;;
 ;; The network interface that the builtin SSH server should listen on
 ;SSH_LISTEN_HOST =
 ;;
 ;; The port number that the builtin SSH server should listen on, defaults to SSH_PORT
-;SSH_LISTEN_PORT =
+SSH_LISTEN_PORT = 22
 ;;
 ;; SSH username displayed in clone URLs. It defaults to BUILTIN_SSH_SERVER_USER or RUN_USER.
 ;; If it is set to "(DOER_USERNAME)", it will use current signed-in user's username.
@@ -242,7 +242,7 @@
 ;;
 ;; TLS Settings: Either ACME or manual
 ;; (Other common TLS configuration are found before)
-;ENABLE_ACME = false
+ENABLE_ACME = false
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -415,7 +415,7 @@ SQLITE_JOURNAL_MODE = WAL; defaults to sqlite database default (often DELETE), c
 ;DB_RETRY_BACKOFF = 3s
 ;;
 ;; Max idle database connections on connection pool, default is 2
-;MAX_IDLE_CONNS = 2
+MAX_IDLE_CONNS = 5
 ;;
 ;; Database connection max life time, default is 0 or 3s mysql (See #6804 & #7071 for reasoning)
 ;CONN_MAX_LIFETIME = 3s
@@ -1775,13 +1775,13 @@ LEVEL = Info
 ;; https://github.com/go-gitea/gitea/blob/release/v1.17/custom/conf/app.example.ini
 ;; https://github.com/go-gitea/gitea/blob/release/v1.17/docs/content/doc/advanced/config-cheat-sheet.en-us.md
 ;;
-;ENABLED = false
+ENABLED = "{{ lookup('env', 'GITEA_MAILER_ENABLED') }}"
 ;;
 ;; Buffer length of channel, keep it as it is if you don't know what it is.
 ;SEND_BUFFER_LEN = 100
 ;;
 ;; Prefix displayed before subject in mail
-;SUBJECT_PREFIX =
+SUBJECT_PREFIX = "{{ lookup('env', 'GITEA_MAILER_SUBJECT_PREFIX') }}"
 ;;
 ;; Mail server protocol. One of "smtp", "smtps", "smtp+starttls", "smtp+unix", "sendmail", "dummy".
 ;; - sendmail: use the operating system's `sendmail` command instead of SMTP. This is common on Linux systems.
@@ -1794,7 +1794,7 @@ LEVEL = Info
 ;; Mail server address, e.g. smtp.gmail.com.
 ;; For smtp+unix, this should be a path to a unix socket instead.
 ;; (Before 1.18, see the notice, this was combined with SMTP_PORT as HOST.)
-;SMTP_ADDR =
+SMTP_ADDR = "{{ lookup('env', 'GITEA_MAILER_SMTP_ADDRESS') }}"
 ;;
 ;; Mail server port. Common ports are:
 ;;   25:  insecure SMTP
@@ -1802,7 +1802,7 @@ LEVEL = Info
 ;;   587: StartTLS
 ;; If no protocol is specified, it will be inferred by this setting.
 ;; (Before 1.18, this was combined with SMTP_ADDR as HOST.)
-;SMTP_PORT =
+SMTP_PORT = "{{ lookup('env', 'GITEA_MAILER_SMTP_PORT') }}"
 ;;
 ;; Enable HELO operation. Defaults to true.
 ;ENABLE_HELO = true
@@ -1821,7 +1821,7 @@ LEVEL = Info
 ;CLIENT_KEY_FILE = custom/mailer/key.pem
 ;;
 ;; Mail from address, RFC 5322. This can be just an email address, or the `"Name" <email@example.com>` format
-;FROM =
+FROM = "{{ lookup('env', 'GITEA_MAILER_FROM_ADDRESS') }}"
 ;;
 ;; Sometimes it is helpful to use a different address on the envelope. Set this to use ENVELOPE_FROM as the from on the envelope. Set to `<>` to send an empty address.
 ;ENVELOPE_FROM =
@@ -1831,10 +1831,10 @@ LEVEL = Info
 ;FROM_DISPLAY_NAME_FORMAT = {{ .DisplayName }}
 ;;
 ;; Mailer user name and password, if required by provider.
-;USER =
+USER = "{{ lookup('env', 'GITEA_MAILER_USER') }}"
 ;;
 ;; Use PASSWD = `your password` for quoting if you use special characters in the password.
-;PASSWD =
+PASSWD = "{{ lookup('env', 'GITEA_MAILER_PASSWORD') }}"
 ;;
 ;; Send mails only in plain text, without HTML alternative
 ;SEND_AS_PLAIN_TEXT = false
@@ -2123,7 +2123,7 @@ LEVEL = Info
 ;; Common settings
 ;;
 ;; Setting this to true will enable all cron tasks periodically with default settings.
-;ENABLED = false
+ENABLED = true
 ;; Setting this to true will run all enabled cron tasks when Gitea starts.
 ;RUN_AT_START = false
 ;;
