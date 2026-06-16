@@ -35,7 +35,12 @@
   register: nomad_vault_token_file
 
 - name: Create Nomad token in Vault
-  ansible.builtin.command: vault token create -policy="nomad-cluster" -format=json
+  ansible.builtin.command: >
+    vault token create
+    -policy=nomad-cluster
+    -orphan
+    -renewable=true
+    -format=json
   environment:
     VAULT_ADDR: "{{ nomad_server.vault.addr }}"
     VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
