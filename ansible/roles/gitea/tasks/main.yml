@@ -1,5 +1,5 @@
 ---
-- name: Install Caddy dependencies
+- name: Install Gitea dependencies
   become: true
   ansible.builtin.dnf5:
     name:
@@ -19,3 +19,80 @@
     - "{{ gitea_config.data_dir }}"
     - "{{ gitea_config.data_dir }}/data"
     - "{{ gitea_config.data_dir }}/config"
+
+- name: Get mounted secret engines
+  community.hashi_vault.vault_read:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/mounts
+    validate_certs: false
+  register: vault_mounts
+
+- name: Enable KV v2 secrets engine
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/mounts/secret
+    validate_certs: false
+    data:
+      type: kv
+      options:
+        version: "2"
+  when: "'secret/' not in vault_mounts.data"
+
+- name: Create Gitea policy file
+  copy:
+    dest: /tmp/gitea-policy.hcl
+    content: |
+      path "secret/data/gitea" {
+        capabilities = ["read"]
+      }
+
+- name: Write Gitea policy
+  command: vault policy write gitea /tmp/gitea-policy.hcl
+  environment:
+    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
+
+- name: Check if Gitea secrets exist
+  community.hashi_vault.vault_read:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: secret/data/gitea
+    validate_certs: false
+  register: gitea_secret
+  failed_when: false
+
+- name: Create Gitea secrets
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: secret/data/gitea
+    validate_certs: false
+    data:
+      data:
+        secret_key: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+        internal_token: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+        jwt_secret: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+        lfs_jwt_secret: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+  when: gitea_secret.failed | default(true)
+
+- name: Create Gitea PKI role
+  command: >
+    vault write pki/roles/gitea
+    allowed_domains="git.home.arpa"
+    allow_subdomains=true
+    max_ttl=87600h
+
+# TODO: Make sure port 2222 is open
+# TODO: USE THIS IN GITEA NOMAD JOB
+# network {
+#   port "http" {
+#     to = 3000
+#   }
+#
+#   port "ssh" {
+#     static = 2222
+#     to = 2222
+#   }
+# }
