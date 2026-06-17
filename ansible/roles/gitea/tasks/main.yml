@@ -84,6 +84,13 @@
     allow_subdomains=true
     max_ttl=87600h
 
+- name: Allow Gitea SSH port
+  ansible.posix.firewalld:
+    port: 2222/tcp
+    permanent: true
+    state: enabled
+    immediate: true
+  when: firewalld_state.stdout == "running"
 # TODO: Make sure port 2222 is open
 # TODO: USE THIS IN GITEA NOMAD JOB
 # network {
