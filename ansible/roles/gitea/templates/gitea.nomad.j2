@@ -3,28 +3,58 @@ job "gitea" {
   namespace   = "{{ nomad_namespace }}"
 
   group "gitea" {
-    task "gitea" {
-      driver = "podman"
-      config {
-        image = "{{ gitea_config.image }}"
+    count = 1
+
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "15s"
+      mode     = "delay"
+    }
+
+    network {
+      port "ssh" {
+        static = "{{ gitea_config.ssh_port }}"
       }
-      env {
-        GITEA_CUSTOM = "{{ gitea_config.data_dir }}"
+
+      port "http" {
+        static = "{{ gitea_config.port }}"
       }
     }
 
-    service {
-      name = "gitea"
-      port = "{{ gitea_config.port }}"
-      tags = ["gitea", "git", "development"]
-      address_mode = "host"
+    task "gitea" {
+      driver = "podman"
 
-      check {
-        type     = "http"
-        interval = "10s"
-        timeout  = "5s"
-        path     = "/api/healthz"
-        port     = "{{ gitea_config.port }}"
+      config {
+        image = "{{ gitea_config.image }}"
+
+        volumes = [
+          # TODO: Mount gitea data dirs
+        ]
+      }
+
+      env {
+        GITEA_CUSTOM = "{{ gitea_config.data_dir }}"
+      }
+
+      service {
+        name = "gitea"
+        port = "{{ gitea_config.port }}"
+        tags = ["gitea", "git", "development"]
+        address_mode = "host"
+
+        check {
+          type     = "http"
+          interval = "10s"
+          timeout  = "5s"
+          path     = "/api/healthz"
+          port     = "{{ gitea_config.port }}"
+        }
+      }
+
+      logs {
+        max_files     = 10
+        max_file_size = 10
       }
     }
   }
