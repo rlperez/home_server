@@ -91,15 +91,3 @@
     state: enabled
     immediate: true
   when: firewalld_state.stdout == "running"
-# TODO: Make sure port 2222 is open
-# TODO: USE THIS IN GITEA NOMAD JOB
-# network {
-#   port "http" {
-#     to = 3000
-#   }
-#
-#   port "ssh" {
-#     static = 2222
-#     to = 2222
-#   }
-# }
