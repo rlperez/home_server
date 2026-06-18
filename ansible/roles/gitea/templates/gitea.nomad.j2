@@ -1,6 +1,6 @@
 job "gitea" {
   datacenters = ["homelab"]
-  namespace   = "{{ nomad_namespace }}"
+  namespace   = "{{ gitea_config.nomad_namespace }}"
 
   group "gitea" {
     count = 1
@@ -29,12 +29,17 @@ job "gitea" {
         image = "{{ gitea_config.image }}"
 
         volumes = [
-          # TODO: Mount gitea data dirs
+          "{{ gitea_config.data_dir }}/lib:/var/lib/gitea:Z",
+          "{{ gitea_config.data_dir }}/etc:/etc/gitea:Z",
+          "/etc/localtime:/etc/localtime:ro,Z"
         ]
+
+        ports = ["http", "ssh"]
       }
 
       env {
-        GITEA_CUSTOM = "{{ gitea_config.data_dir }}"
+        GITEA_CUSTOM = "{{ gitea_config.data_dir }}",
+        TZ = "{{ nomad_server.timezone }}"
       }
 
       service {
