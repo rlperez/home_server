@@ -53,6 +53,7 @@
   environment:
     VAULT_ADDR: "{{ nomad_server.vault.addr }}"
     VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
+    VAULT_SKIP_VERIFY: "true"
 
 - name: Check if Gitea secrets exist
   community.hashi_vault.vault_read:
@@ -83,6 +84,10 @@
     allowed_domains="git.home.arpa"
     allow_subdomains=true
     max_ttl=87600h
+  environment:
+    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
+    VAULT_SKIP_VERIFY: "true"
 
 - name: Allow Gitea SSH port
   ansible.posix.firewalld:
@@ -90,4 +95,30 @@
     permanent: true
     state: enabled
     immediate: true
-  when: firewalld_state.stdout == "running"
+
+- name: Render Gitea Nomad job
+  template:
+    src: gitea.nomad.j2
+    dest: "{{ gitea_config.nomad_job_path }}"
+  register: gitea_job
+
+- name: Read current Nomad bootstrap token
+  ansible.builtin.slurp:
+    src: "{{ nomad_server.nomad.acl.bootstrap_token_file }}"
+  register: nomad_token_file
+  no_log: true
+
+- name: Set Nomad token fact
+  ansible.builtin.set_fact:
+    nomad_management_token: "{{ (nomad_token_file.content | b64decode | from_json).SecretID }}"
+  no_log: true
+
+- name: Run Gitea Nomad job
+  command: >
+    nomad job run
+    -namespace={{ gitea_config.nomad_namespace }}
+    {{ gitea_config.nomad_job_path }}
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ nomad_management_token }}"
