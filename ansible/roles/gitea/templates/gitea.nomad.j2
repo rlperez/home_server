@@ -29,22 +29,22 @@ job "gitea" {
         image = "{{ gitea_config.image }}"
 
         volumes = [
-          "{{ gitea_config.data_dir }}/lib:/var/lib/gitea:Z",
-          "{{ gitea_config.data_dir }}/etc:/etc/gitea:Z",
-          "/etc/localtime:/etc/localtime:ro,Z"
+          "{{ gitea_config.data_dir }}/var:/var/lib/gitea",
+          "{{ gitea_config.data_dir }}/data:/data",
+          "{{ gitea_config.data_dir }}/config:/etc/gitea",
+          "/etc/localtime:/etc/localtime:ro"
         ]
 
         ports = ["http", "ssh"]
       }
 
       env {
-        GITEA_CUSTOM = "{{ gitea_config.data_dir }}",
         TZ = "{{ nomad_server.timezone }}"
       }
 
       service {
         name = "gitea"
-        port = "{{ gitea_config.port }}"
+        port = "http"
         tags = ["gitea", "git", "development"]
         address_mode = "host"
 
@@ -53,7 +53,7 @@ job "gitea" {
           interval = "10s"
           timeout  = "5s"
           path     = "/api/healthz"
-          port     = "{{ gitea_config.port }}"
+          port     = "http"
         }
       }
 
