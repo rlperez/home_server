@@ -1,0 +1,131 @@
+---
+- name: Install Gitea dependencies
+  become: true
+  ansible.builtin.dnf5:
+    name:
+      - nomad
+      - nomad-driver-podman
+      - nomad-autoscaler
+    state: present
+
+- name: Create Gitea directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0755"
+  loop:
+    - "{{ gitea_config.data_dir }}"
+    - "{{ gitea_config.data_dir }}/data"
+    - "{{ gitea_config.data_dir }}/var"
+    - "{{ gitea_config.data_dir }}/data/conf"
+
+- name: Get mounted secret engines
+  community.hashi_vault.vault_read:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/mounts
+    validate_certs: false
+  register: vault_mounts
+
+- name: Enable KV v2 secrets engine
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/mounts/secret
+    validate_certs: false
+    data:
+      type: kv
+      options:
+        version: "2"
+  when: "'secret/' not in vault_mounts.data"
+
+- name: Create Gitea policy file
+  copy:
+    dest: /tmp/gitea-policy.hcl
+    content: |
+      path "secret/data/gitea" {
+        capabilities = ["read"]
+      }
+
+- name: Write Gitea policy
+  command: vault policy write gitea /tmp/gitea-policy.hcl
+  environment:
+    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
+    VAULT_SKIP_VERIFY: "true"
+
+- name: Check if Gitea secrets exist
+  community.hashi_vault.vault_read:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: secret/data/gitea
+    validate_certs: false
+  register: gitea_secret
+  failed_when: false
+
+- name: Create Gitea secrets
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: secret/data/gitea
+    validate_certs: false
+    data:
+      data:
+        secret_key: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+        internal_token: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+        jwt_secret: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+        lfs_jwt_secret: "{{ lookup('password', '/dev/null length=64 chars=hexdigits') }}"
+  when: gitea_secret.failed | default(true)
+
+- name: Create Gitea PKI role
+  command: >
+    vault write pki/roles/gitea
+    allowed_domains="git.home.arpa"
+    allow_subdomains=true
+    max_ttl=87600h
+  environment:
+    VAULT_ADDR: "{{ nomad_server.vault.addr }}"
+    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
+    VAULT_SKIP_VERIFY: "true"
+
+- name: Allow Gitea SSH port
+  ansible.posix.firewalld:
+    port: 2222/tcp
+    permanent: true
+    state: enabled
+    immediate: true
+
+- name: Render Gitea app.ini
+  template:
+    src: app.ini.j2
+    dest: "{{ gitea_config.nomad_job_path }}/conf/"
+  register: gitea_job
+
+- name: Render Gitea Nomad job
+  template:
+    src: gitea.nomad.j2
+    dest: "{{ gitea_config.nomad_job_path }}"
+  register: gitea_job
+
+- name: Read current Nomad bootstrap token
+  ansible.builtin.slurp:
+    src: "{{ nomad_server.nomad.acl.bootstrap_token_file }}"
+  register: nomad_token_file
+  no_log: true
+
+- name: Set Nomad token fact
+  ansible.builtin.set_fact:
+    nomad_management_token: "{{ (nomad_token_file.content | b64decode | from_json).SecretID }}"
+  no_log: true
+
+- name: Run Gitea Nomad job
+  command: >
+    nomad job run
+    -namespace={{ gitea_config.nomad_namespace }}
+    {{ gitea_config.nomad_job_path }}
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ nomad_management_token }}"
