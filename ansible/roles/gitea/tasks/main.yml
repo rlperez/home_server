@@ -18,7 +18,8 @@
   loop:
     - "{{ gitea_config.data_dir }}"
     - "{{ gitea_config.data_dir }}/data"
-    - "{{ gitea_config.data_dir }}/config"
+    - "{{ gitea_config.data_dir }}/var"
+    - "{{ gitea_config.data_dir }}/data/conf"
 
 - name: Get mounted secret engines
   community.hashi_vault.vault_read:
@@ -95,6 +96,12 @@
     permanent: true
     state: enabled
     immediate: true
+
+- name: Render Gitea app.ini
+  template:
+    src: app.ini.j2
+    dest: "{{ gitea_config.nomad_job_path }}/conf/"
+  register: gitea_job
 
 - name: Render Gitea Nomad job
   template:
