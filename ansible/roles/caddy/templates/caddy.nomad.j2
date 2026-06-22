@@ -1,6 +1,7 @@
-job "{{ caddy_config.job_name }}" {
+job "caddy" {
   datacenters = [{% for dc in caddy_config.datacenters %}"{{ dc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
-  type = "{{ caddy_config.job_type }}"
+  type        = "{{ caddy_config.job_type }}"
+  namespace   = "{{ caddy_config.nomad_namespace }}"
 
   group "caddy" {
     count = 1
