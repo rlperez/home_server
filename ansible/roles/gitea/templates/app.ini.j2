@@ -655,7 +655,7 @@ LEVEL = Info
 ;REQUEST_ID_HEADERS =
 ;;
 ;; Sets the template used to create the access log.
-;ACCESS_LOG_TEMPLATE = {{.Ctx.RemoteHost}} - {{.Identity}} {{.Start.Format "[02/Jan/2006:15:04:05 -0700]" }} "{{.Ctx.Req.Method}} {{.Ctx.Req.URL.RequestURI}} {{.Ctx.Req.Proto}}" {{.ResponseWriter.Status}} {{.ResponseWriter.Size}} "{{.Ctx.Req.Referer}}" "{{.Ctx.Req.UserAgent}}"
+;ACCESS_LOG_TEMPLATE =
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -1827,8 +1827,7 @@ FROM = "{{ lookup('env', 'GITEA_MAILER_FROM_ADDRESS') }}"
 ;ENVELOPE_FROM =
 ;;
 ;; If gitea sends mails on behave of users, it will just use the name also displayed in the WebUI. If you want e.g. `Mister X (by CodeIt) <gitea@codeit.net>`,
-;; set it to `{{ .DisplayName }} (by {{ .AppName }})`. Available Variables: `.DisplayName`, `.AppName` and `.Domain`.
-;FROM_DISPLAY_NAME_FORMAT = {{ .DisplayName }}
+;FROM_DISPLAY_NAME_FORMAT =
 ;;
 ;; Mailer user name and password, if required by provider.
 USER = "{{ lookup('env', 'GITEA_MAILER_USER') }}"
