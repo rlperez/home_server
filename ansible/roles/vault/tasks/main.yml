@@ -270,3 +270,23 @@
       Vault is fully unsealed, healthy, and resolvable!
       Registered in Consul: {{ 'vault' in vault_consul_services.stdout }}
       Vault DNS IP: {{ vault_dns.stdout | trim }}
+
+- name: Get mounted secret engines
+  community.hashi_vault.vault_read:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/mounts
+    validate_certs: false
+  register: vault_mounts
+
+- name: Enable KV v2 secrets engine
+  community.hashi_vault.vault_write:
+    url: "{{ nomad_server.vault.addr }}"
+    token: "{{ nomad_server.vault.root_token }}"
+    path: sys/mounts/secret
+    validate_certs: false
+    data:
+      type: kv
+      options:
+        version: "2"
+  when: "'secret/' not in vault_mounts.data"

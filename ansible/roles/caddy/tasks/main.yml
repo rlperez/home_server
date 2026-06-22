@@ -10,7 +10,7 @@
       - containernetworking-plugins
     state: present
 
-- name: Create caddy directories
+- name: Create Caddy directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory

@@ -1,7 +1,6 @@
 ---
 caddy_config:
   nomad_job_path: /etc/nomad.d/jobs/caddy.nomad
-  job_name: caddy
   datacenters:
     - homelab
   image: docker.io/library/caddy:2-alpine
@@ -10,16 +9,19 @@ caddy_config:
   email: rlperez@kablamo.me
   upstreams:
     - host: vault.home.arpa
-      upstream: "127.0.0.1:8200"
+      upstream: "vault.service.consul:8200"
       tls_upstream: true
     - host: nomad.home.arpa
-      upstream: "127.0.0.1:4646"
+      upstream: "nomad.service.consul:4646"
       tls_upstream: true
     - host: consul.home.arpa
-      upstream: "127.0.0.1:8500"
+      upstream: "consul.service.consul:8500"
       tls_upstream: false
+    - host: git.home.arpa
+      upstream: "gitea.service.consul:3000"
+      tls_upstream: true
   http_port: 80
   https_port: 443
   admin_port: 2019
   constraints: []
-  job_type: service
+  job_type: system
