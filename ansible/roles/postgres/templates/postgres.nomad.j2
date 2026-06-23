@@ -1,0 +1,120 @@
+variable "datacenters" {
+  description = "List of datacenters to deploy to"
+  type        = list(string)
+  default     = ["homelab"]
+}
+
+variable "postgres_version" {
+  description = "PostgreSQL Docker image tag"
+  type        = string
+  default     = "18-bookworm"
+}
+
+variable "port" {
+  description = "Port to expose PostgreSQL on (0 for dynamic)"
+  type        = number
+  default     = 5432
+}
+
+variable "database" {
+  description = "Default database name"
+  type        = string
+  default     = "postgres"
+}
+
+variable "username" {
+  description = "Database superuser username"
+  type        = string
+  default     = "postgres"
+}
+
+variable "password" {
+  description = "Database superuser password"
+  type        = string
+  default     = "postgres"
+}
+
+variable "cpu" {
+  description = "CPU allocation in MHz"
+  type        = number
+  default     = 500
+}
+
+variable "memory" {
+  description = "Memory allocation in MB"
+  type        = number
+  default     = 512
+}
+
+variable "service_provider" {
+  description = "Service discovery provider (nomad or consul)"
+  type        = string
+  default     = "consul"
+}
+
+job "postgresql" {
+  type        = "service"
+  datacenters = var.datacenters
+
+  update {
+    max_parallel     = 1
+    min_healthy_time = "10s"
+    healthy_deadline = "5m"
+    auto_revert      = true
+  }
+
+  group "postgresql" {
+    count = 1
+
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "15s"
+      mode     = "delay"
+    }
+
+    network {
+      port "db" {
+        static = var.port > 0 ? var.port : null
+        to     = 5432
+      }
+    }
+
+    service {
+      name     = "postgresql"
+      port     = "db"
+      provider = var.service_provider
+
+      tags = [
+        "db",
+        "postgres",
+      ]
+
+      check {
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "postgresql" {
+      driver = "docker"
+
+      config {
+        image = "postgres:${var.postgres_version}"
+        ports = ["db"]
+      }
+
+      env {
+        POSTGRES_DB       = var.database
+        POSTGRES_USER     = var.username
+        POSTGRES_PASSWORD = var.password
+      }
+
+      resources {
+        cpu    = var.cpu
+        memory = var.memory
+      }
+    }
+  }
+}
