@@ -1,0 +1,7 @@
+postgres_config:
+  datacenters:
+    - homelab
+  data_dir: /opt/caddy
+  image: docker.io/library/postgres:18-trixie
+  nomad_job_path: /etc/nomad.d/jobs/postgres.nomad
+  nomad_namespace: data
