@@ -1,0 +1,37 @@
+---
+nomad_server:
+  timezone: "America/New_York"
+  consul:
+    # TODO: Trace this down and replace it with the values from the secrets file
+    nomad_token: "{{lookup('env', 'CONSUL_NOMAD_TOKEN')}}"
+    dns_addr: consul.service.consul:8600
+  vault:
+    addr: "https://vault.service.consul:8200"
+    hostname: "vault.service.consul"
+    # TODO: Trace this down and replace it with the values from the secrets file
+    # TODO: Delete files on server
+    root_token: "{{ lookup('env', 'VAULT_ROOT_TOKEN')}}"
+    # TODO: Trace this down and replace it with the values from the secrets file
+    # TODO: Delete files on server
+    unseal_keys: "{{ lookup('env', 'VAULT_UNSEAL_KEYS') | split(',') }}"
+    crt_path: "/etc/vault.d/tls/vault.crt"
+    nomad:
+      role: "nomad-cluster"
+      # TODO: Trace this down and replace it with the values from the secrets file
+      management-token: "{{lookup('env', 'NOMAD_TOKEN')}}"
+      # TODO: Trace this down and replace it with the values from the secrets file
+      token_file: "/etc/nomad.d/vault_nomad_token"
+      key_file: "/etc/nomad.d/certs/nomad-key.pem"
+  nomad:
+    addr: "https://nomad.service.consul:4646"
+    acl:
+      # TODO: Trace this down and replace it with the values from the secrets file
+      # TODO: Delete files on server
+      bootstrap_token_file: "/etc/nomad.d/nomad-management-token.txt"
+    user:
+      name: nomad
+      group: nomad
+    vault:
+      ca_file: "/etc/nomad.d/certs/ca.pem"
+      cert_file: "/etc/nomad.d/certs/nomad.pem"
+      key_file: "/etc/nomad.d/certs/nomad-key.pem"
