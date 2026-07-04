@@ -7,7 +7,7 @@ echo "Waiting for Vault API..."
 
 # wait until Vault responds at all
 until curl -sk $VAULT_ADDR/v1/sys/health >/dev/null; do
-  sleep 2
+    sleep 2
 done
 
 echo "Vault is reachable."
@@ -23,25 +23,25 @@ echo "Sealed: $sealed"
 
 # if not initialized, stop (something is wrong)
 if [ "$initialized" != "true" ]; then
-  echo "Vault is not initialized. Exiting."
-  exit 1
+    echo "Vault is not initialized. Exiting."
+    exit 1
 fi
 
 # if already unsealed, do nothing
 if [ "$sealed" != "true" ]; then
-  echo "Vault already unsealed. Nothing to do."
-  exit 0
+    echo "Vault already unsealed. Nothing to do."
+    exit 0
 fi
 
 echo "Vault is sealed. Unsealing..."
 
-{% for key in nomad_server.vault.unseal_keys %}
+{% for key in vault.unseal_keys %}
 vault operator unseal '{{ key }}' >/dev/null 2>&1 || true
 {% endfor %}
 
 if vault status | grep -q 'Sealed.*false'; then
-  echo "Unseal successful"
+    echo "Unseal successful"
 else
-  echo "Unseal FAILED"
-  exit 1
+    echo "Unseal FAILED"
+    exit 1
 fi

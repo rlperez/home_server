@@ -213,7 +213,7 @@
 
 - name: Unseal Vault (Loops through keys until unsealed)
   ansible.builtin.command: "vault operator unseal {{ item }}"
-  loop: "{{ nomad_server.vault.unseal_keys }}"
+  loop: "{{ vault.unseal_keys }}"
   when: vault_status_parsed.sealed | bool
   environment:
     VAULT_ADDR: "https://127.0.0.1:8200"
@@ -274,7 +274,7 @@
 - name: Get mounted secret engines
   community.hashi_vault.vault_read:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ vault.token }}"
     path: sys/mounts
     validate_certs: false
   register: vault_mounts
@@ -282,7 +282,7 @@
 - name: Enable KV v2 secrets engine
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ vault.token }}"
     path: sys/mounts/secret
     validate_certs: false
     data:

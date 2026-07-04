@@ -19,7 +19,7 @@
 - name: Ensure PKI secrets engine is mounted
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ vault.token }}"
     path: sys/mounts/pki
     validate_certs: false
     data:
@@ -33,7 +33,7 @@
 - name: Tune PKI mount TTL
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ vault.token }}"
     path: sys/mounts/pki/tune
     validate_certs: false
     data:
@@ -43,7 +43,7 @@
 - name: Read Root CA cert from Vault
   community.hashi_vault.vault_read:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ vault.token }}"
     path: pki/cert/ca
     validate_certs: false
   register: root_ca_read
@@ -73,7 +73,7 @@
 - name: Generate Root CA (10 years) if missing or expired
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ vault.token }}"
     path: pki/root/generate/internal
     validate_certs: false
     data:
@@ -85,7 +85,7 @@
 - name: Create or update Nomad PKI role
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ vault.token }}"
     path: pki/roles/nomad
     validate_certs: false
     data:
