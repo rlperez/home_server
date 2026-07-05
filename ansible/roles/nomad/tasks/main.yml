@@ -152,3 +152,120 @@
       Nomad service status: {{ nomad_status.stdout }}
       Nomad API status: {{ nomad_api.status }}
       Nomad Leader: {{ nomad_api.json | default('Unknown') }}
+
+- name: Set vault password file location fact
+  ansible.builtin.set_fact:
+    vault_pass_file: "{{ lookup('env', 'PWD') }}/.vault_pass"
+
+- name: Set secrets file location fact
+  ansible.builtin.set_fact:
+    secrets_file: "{{ lookup('env', 'PWD') }}/inventory/nomad_servers/secrets.yml"
+
+- name: Create a secure temporary file
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .yml
+  delegate_to: localhost
+  run_once: true
+  register: temp_secrets
+
+- name: Decrypt secrets to temporary file
+  ansible.builtin.command:
+    cmd: >
+      ansible-vault decrypt
+      --vault-password-file {{ vault_pass_file }}
+      --output {{ temp_secrets.path }}
+      {{ `` }}
+  delegate_to: localhost
+  run_once: true
+  no_log: true
+
+- name: Load decrypted YAML
+  ansible.builtin.set_fact:
+    vault_data: "{{ lookup('file', secrets_file.path) | from_yaml }}"
+  no_log: true
+  run_once: true
+  delegate_to: localhost
+
+- name: Update nomad management token key
+  ansible.builtin.set_fact:
+    updated_data: >
+      {{
+        vault_data | combine(
+          {
+            'secrets': {
+              'nomad': {
+                'token': nomad_management_token.stdout | trim
+              }
+            }
+          },
+          recursive=True
+        )
+      }}
+  no_log: true
+  delegate_to: localhost
+  run_once: true
+
+- name: Write updated YAML to temporary file
+  ansible.builtin.copy:
+    content: "{{ updated_data | to_nice_yaml }}"
+    dest: "{{ secrets_file.path }}"
+    mode: "0600"
+  no_log: true
+  delegate_to: localhost
+  run_once: true
+
+- name: Re-encrypt the temporary file
+  ansible.builtin.command:
+    cmd: >
+      ansible-vault encrypt
+      --vault-password-file {{ vault_pass_file }}
+      {{ secrets_file.path }}
+  no_log: true
+  delegate_to: localhost
+  run_once: true
+
+- name: Move encrypted temp file back to original location
+  ansible.builtin.copy:
+    src: "{{ secrets_file.path }}"
+    dest: "{{ secrets_file }}"
+    remote_src: yes
+    mode: "0600"
+  no_log: true
+  delegate_to: localhost
+  run_once: true
+
+- name: Reload secrets to get new token
+  ansible.builtin.include_vars:
+    file: "{{ secrets_file }}"
+    name: secrets
+
+- name: Cleanup management token file
+  ansible.builtin.file:
+    path: "{{ nomad_server.nomad.acl.bootstrap_token_file }}"
+    state: absent
+  run_once: true
+
+- name: Cleanup temporary file
+  ansible.builtin.file:
+    path: "{{ temp_secrets.path }}"
+    state: absent
+  delegate_to: localhost
+  run_once: true
+
+- name: Check Nomad service status
+  ansible.builtin.command: nomad status
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_CACERT: "{{ nomad_server.nomad.vault.ca_file }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: nomad_status
+  changed_when: false
+  no_log: true
+
+- name: Debug Nomad service status
+  ansible.builtin.debug:
+    msg: >
+      Nomad service status: {{ nomad_status.stdout }}
+      Nomad API status: {{ nomad_api.status }}
+      Nomad Leader: {{ nomad_api.json | default('Unknown') }}
