@@ -38,7 +38,6 @@
   ansible.builtin.command: vault token create -policy="nomad-cluster" -format=json
   environment:
     VAULT_ADDR: "{{ nomad_server.vault.addr }}"
-    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
   register: nomad_vault_token_json
   changed_when: true
   when: not nomad_vault_token_file.stat.exists

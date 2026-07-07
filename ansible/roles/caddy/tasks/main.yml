@@ -51,7 +51,7 @@
     NOMAD_CACERT: "{{ nomad_server.nomad.vault.ca_file }}"
     NOMAD_CLIENT_CERT: "{{ nomad_server.nomad.vault.cert_file }}"
     NOMAD_CLIENT_KEY: "{{ nomad_server.nomad.vault.key_file }}"
-    NOMAD_TOKEN: "{{ nomad.token }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   ansible.builtin.command:
     cmd: >
       nomad namespace apply {{ caddy_config.nomad_namespace }}
@@ -73,7 +73,7 @@
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
-    NOMAD_TOKEN: "{{ nomad.token }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   ansible.builtin.command:
     cmd: >
       nomad job run

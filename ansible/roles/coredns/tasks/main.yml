@@ -113,7 +113,7 @@
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
-    NOMAD_TOKEN: "{{ nomad.token }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   register: nomad_run
   changed_when: true
   when: coredns_config.changed or coredns_zone_config.changed or coredns_job.changed

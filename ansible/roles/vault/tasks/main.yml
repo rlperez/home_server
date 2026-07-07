@@ -213,7 +213,7 @@
 
 - name: Unseal Vault (Loops through keys until unsealed)
   ansible.builtin.command: "vault operator unseal {{ item }}"
-  loop: "{{ vault.unseal_keys }}"
+  loop: "{{ secrets.vault.unseal_keys }}"
   when: vault_status_parsed.sealed | bool
   environment:
     VAULT_ADDR: "https://127.0.0.1:8200"
