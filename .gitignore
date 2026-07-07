@@ -1,2 +1,4 @@
 *.env
 *.log
+.vault_pass
+secrets.yml
