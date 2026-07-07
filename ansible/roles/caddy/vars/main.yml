@@ -6,7 +6,6 @@ caddy_config:
   image: docker.io/library/caddy:2-alpine
   nomad_namespace: ingress
   data_dir: /opt/caddy
-  email: rlperez@kablamo.me
   upstreams:
     - host: vault.home.arpa
       upstream: "vault.service.consul:8200"

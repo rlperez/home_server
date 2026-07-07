@@ -44,25 +44,14 @@
   ansible.builtin.debug:
     var: nomad_server.nomad.addr
 
-- name: Read Nomad bootstrap token from remote server
-  ansible.builtin.slurp:
-    src: /etc/nomad.d/nomad-management-token.txt
-  register: nomad_token_slurp
-  no_log: true
-
-- name: Set Nomad token fact
-  ansible.builtin.set_fact:
-    nomad_management_token: "{{ (nomad_token_slurp.content | b64decode | from_json).SecretID }}"
-  no_log: true
-
-- name: Ensure ingress namespace exists
+- name: Ensure {{ caddy_config.nomad_namespace }} namespace exists
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
     NOMAD_CACERT: "{{ nomad_server.nomad.vault.ca_file }}"
     NOMAD_CLIENT_CERT: "{{ nomad_server.nomad.vault.cert_file }}"
     NOMAD_CLIENT_KEY: "{{ nomad_server.nomad.vault.key_file }}"
-    NOMAD_TOKEN: "{{ nomad_management_token }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   ansible.builtin.command:
     cmd: >
       nomad namespace apply {{ caddy_config.nomad_namespace }}
@@ -84,7 +73,7 @@
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
-    NOMAD_TOKEN: "{{ nomad_management_token }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   ansible.builtin.command:
     cmd: >
       nomad job run

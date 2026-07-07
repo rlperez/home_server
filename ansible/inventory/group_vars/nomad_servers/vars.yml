@@ -1,0 +1,23 @@
+---
+nomad_server:
+  timezone: "America/New_York"
+  consul:
+    dns_addr: consul.service.consul:8600
+  vault:
+    addr: "https://vault.service.consul:8200"
+    hostname: "vault.service.consul"
+    crt_path: "/etc/vault.d/tls/vault.crt"
+    nomad:
+      role: "nomad-cluster"
+      key_file: "/etc/nomad.d/certs/nomad-key.pem"
+  nomad:
+    addr: "https://nomad.service.consul:4646"
+    acl:
+      bootstrap_token_file: "/etc/nomad.d/nomad-management-token.txt"
+    user:
+      name: nomad
+      group: nomad
+    vault:
+      ca_file: "/etc/nomad.d/certs/ca.pem"
+      cert_file: "/etc/nomad.d/certs/nomad.pem"
+      key_file: "/etc/nomad.d/certs/nomad-key.pem"

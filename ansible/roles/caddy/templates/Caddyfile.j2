@@ -1,5 +1,5 @@
 {
-    email {{ caddy_config.email }}
+    email {{ secrets.caddy.email }}
 
     admin localhost:{{ caddy_config.admin_port }}
 

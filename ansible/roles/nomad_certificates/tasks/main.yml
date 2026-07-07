@@ -63,7 +63,7 @@
     url: "{{ nomad_server.vault.addr }}/v1/pki/roles/nomad"
     method: DELETE
     headers:
-      X-Vault-Token: "{{ nomad_server.vault.root_token }}"
+      X-Vault-Token: "{{ secrets.vault.token }}"
     validate_certs: false
     status_code: [200, 204, 404]
   when: cert_needs_renewal | default(true)
@@ -72,7 +72,7 @@
 - name: Create PKI role in Vault (10 year TTL)
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ secrets.vault.token }}"
     validate_certs: false
     path: pki/roles/nomad
     data:
@@ -90,7 +90,7 @@
 - name: Create Nomad policy in Vault
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ secrets.vault.token }}"
     validate_certs: false
     path: sys/policies/acl/nomad-cluster
     data:
@@ -104,7 +104,7 @@
     url: "{{ nomad_server.vault.addr }}/v1/sys/policies/acl/nomad-cluster"
     method: GET
     headers:
-      X-Vault-Token: "{{ nomad_server.vault.root_token }}"
+      X-Vault-Token: "{{ secrets.vault.token }}"
     validate_certs: false
     return_content: true
   register: nomad_policy_lookup
@@ -129,7 +129,6 @@
     EOF
   environment:
     VAULT_ADDR: "{{ nomad_server.vault.addr }}"
-    VAULT_TOKEN: "{{ nomad_server.vault.root_token }}"
   register: nomad_policy
   changed_when: false
   when: nomad_policy_lookup is not defined or nomad_policy_lookup.status | default(200) != 200
@@ -137,7 +136,7 @@
 - name: Request Nomad certificate from Vault (10 year TTL)
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ nomad_server.vault.root_token }}"
+    token: "{{ secrets.vault.token }}"
     validate_certs: false
     path: pki/issue/nomad
     data:

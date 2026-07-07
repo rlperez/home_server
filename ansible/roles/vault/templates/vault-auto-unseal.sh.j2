@@ -1,13 +1,13 @@
 #!/bin/bash
 
-export VAULT_ADDR="https://127.0.0.1:8200"
+export VAULT_ADDR="https://vault.service.consul:8200"
 export VAULT_SKIP_VERIFY=true
 
 echo "Waiting for Vault API..."
 
 # wait until Vault responds at all
 until curl -sk $VAULT_ADDR/v1/sys/health >/dev/null; do
-  sleep 2
+    sleep 2
 done
 
 echo "Vault is reachable."
@@ -23,25 +23,30 @@ echo "Sealed: $sealed"
 
 # if not initialized, stop (something is wrong)
 if [ "$initialized" != "true" ]; then
-  echo "Vault is not initialized. Exiting."
-  exit 1
+    echo "Vault is not initialized. Exiting."
+    exit 1
 fi
 
 # if already unsealed, do nothing
 if [ "$sealed" != "true" ]; then
-  echo "Vault already unsealed. Nothing to do."
-  exit 0
+    echo "Vault already unsealed. Nothing to do."
+    exit 0
 fi
 
 echo "Vault is sealed. Unsealing..."
+VAULT_UNSEAL_KEYS=$(vault kv get -format=json secret/vault/unseal_keys | jq -r '.data.data.vault_unseal_keys[]')
+read -ra KEYS_ARRAY <<<"$VAULT_UNSEAL_KEYS"
 
-{% for key in nomad_server.vault.unseal_keys %}
-vault operator unseal '{{ key }}' >/dev/null 2>&1 || true
-{% endfor %}
+for key in "${KEYS_ARRAY[@]}"; do
+    # Skip empty entries just in case
+    [[ -z "$key" ]] && continue
 
-if vault status | grep -q 'Sealed.*false'; then
-  echo "Unseal successful"
+    vault operator unseal "$key" >/dev/null 2>&1 || true
+done
+
+if vault status | grep -i -q 'Sealed.*false'; then
+    echo "Unseal successful"
 else
-  echo "Unseal FAILED"
-  exit 1
+    echo "Unseal FAILED"
+    exit 1
 fi

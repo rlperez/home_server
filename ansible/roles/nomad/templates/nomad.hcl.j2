@@ -22,7 +22,7 @@ client {
 
 consul {
   address = "127.0.0.1:8500"
-  token = "{{ nomad_server.consul.nomad_token }}"
+  token = "{{ secrets.nomad.consul_token }}"
   auto_advertise = true
   server_service_name = "nomad"
   client_service_name = "nomad-client"
