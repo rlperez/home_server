@@ -274,7 +274,7 @@
 - name: Get mounted secret engines
   community.hashi_vault.vault_read:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ vault.token }}"
+    token: "{{ secrets.vault.token }}"
     path: sys/mounts
     validate_certs: false
   register: vault_mounts
@@ -282,7 +282,7 @@
 - name: Enable KV v2 secrets engine
   community.hashi_vault.vault_write:
     url: "{{ nomad_server.vault.addr }}"
-    token: "{{ vault.token }}"
+    token: "{{ secrets.vault.token }}"
     path: sys/mounts/secret
     validate_certs: false
     data:
