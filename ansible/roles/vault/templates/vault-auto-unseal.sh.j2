@@ -1,7 +1,8 @@
 #!/bin/bash
 
-export VAULT_ADDR="https://vault.service.consul:8200"
+export VAULT_ADDR="https://127.0.0.1:8200"
 export VAULT_SKIP_VERIFY=true
+UNSEAL_KEYS_FILE="{{ vault.unseal_key_file_path }}"
 
 echo "Waiting for Vault API..."
 
@@ -33,18 +34,18 @@ if [ "$sealed" != "true" ]; then
     exit 0
 fi
 
+if [[ ! -r "${UNSEAL_KEYS_FILE}" ]]; then
+    echo "Missing ${UNSEAL_KEYS_FILE}"
+    exit 1
+fi
+
 echo "Vault is sealed. Unsealing..."
-VAULT_UNSEAL_KEYS=$(vault kv get -format=json secret/vault/unseal_keys | jq -r '.data.data.vault_unseal_keys[]')
-read -ra KEYS_ARRAY <<<"$VAULT_UNSEAL_KEYS"
-
-for key in "${KEYS_ARRAY[@]}"; do
-    # Skip empty entries just in case
+while IFS= read -r key; do
     [[ -z "$key" ]] && continue
+    vault operator unseal "$key" >/dev/null
+done < "${UNSEAL_KEYS_FILE}"
 
-    vault operator unseal "$key" >/dev/null 2>&1 || true
-done
-
-if vault status | grep -i -q 'Sealed.*false'; then
+if vault status | grep -q -i 'Sealed.*false'; then
     echo "Unseal successful"
 else
     echo "Unseal FAILED"

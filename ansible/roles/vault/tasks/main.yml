@@ -160,6 +160,15 @@
     daemon_reload: true
     no_block: false
 
+- name: Write Vault unseal keys to disk
+  ansible.builtin.copy:
+    content: "{{ secrets.vault.unseal_keys | join('\n') }}\n"
+    dest: /etc/vault.d/unseal_keys.txt
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
 - name: Deploy vault auto-unseal script from template
   ansible.builtin.template:
     src: vault-auto-unseal.sh.j2

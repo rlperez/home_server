@@ -1,4 +1,6 @@
 ---
+vault:
+  unseal_key_file_path: "/etc/vault.d/unseal-keys"
 vault_user:
   name: vault
   comment: Vault User
