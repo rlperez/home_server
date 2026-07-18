@@ -1,0 +1,66 @@
+job "gitea" {
+  datacenters = ["homelab"]
+  namespace   = "{{ gitea_config.nomad_namespace }}"
+
+  group "gitea" {
+    count = 1
+
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "15s"
+      mode     = "delay"
+    }
+
+    network {
+      port "ssh" {
+        static = "{{ gitea_config.ssh_port }}"
+      }
+
+      port "http" {
+        static = "{{ gitea_config.port }}"
+      }
+    }
+
+    task "gitea" {
+      driver = "podman"
+
+      config {
+        image = "{{ gitea_config.image }}"
+
+        volumes = [
+          "{{ gitea_config.data_dir }}/var:/var/lib/gitea",
+          "{{ gitea_config.data_dir }}/data:/data",
+          "{{ gitea_config.data_dir }}/config:/etc/gitea",
+          "/etc/localtime:/etc/localtime:ro"
+        ]
+
+        ports = ["http", "ssh"]
+      }
+
+      env {
+        TZ = "{{ nomad_server.timezone }}"
+      }
+
+      service {
+        name = "gitea"
+        port = "http"
+        tags = ["gitea", "git", "development"]
+        address_mode = "host"
+
+        check {
+          type     = "http"
+          interval = "10s"
+          timeout  = "5s"
+          path     = "/api/healthz"
+          port     = "http"
+        }
+      }
+
+      logs {
+        max_files     = 10
+        max_file_size = 10
+      }
+    }
+  }
+}
