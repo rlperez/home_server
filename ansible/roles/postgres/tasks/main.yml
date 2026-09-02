@@ -1,7 +1,7 @@
 ---
 - name: Create postgres storage directory
   ansible.builtin.file:
-    path: "{{ postgres_config.data_dir }}"
+    path: "{{ postgres_config.data_dir }}/data"
     state: directory
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
