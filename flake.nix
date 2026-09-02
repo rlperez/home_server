@@ -38,6 +38,8 @@
               echo "Vault: $(vault --version)"
               echo "Curl: $(curl --version | head -1)"
               echo "Jq: $(jq --version)"
+
+              fish
             '';
           };
         });
