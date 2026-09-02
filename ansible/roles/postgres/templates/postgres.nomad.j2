@@ -1,6 +1,6 @@
 job "postgresql" {
   type        = "service"
-  datacenters = var.datacenters
+  datacenters = "{{postgres_config.datacenters}}"
 
   update {
     max_parallel     = 1
@@ -21,8 +21,8 @@ job "postgresql" {
 
     network {
       port "db" {
-        static = 5432
-        to     = 5432
+        static = "{{postgres_config.port}}"
+        to     = "{{postgres_config.port}}"
       }
     }
 
@@ -47,19 +47,21 @@ job "postgresql" {
       driver = "podman"
 
       config {
-        image = "docker.io/library/postgres:18-trixie"
+        image = "{{postgres_config.image}}"
         ports = ["db"]
+        volumes = [
+          "{{ postgres_data_dir }}/data:/var/lib/postgresql/data",
+        ]
       }
 
       env {
-        POSTGRES_DB       = var.database
-        POSTGRES_USER     = var.username
-        POSTGRES_PASSWORD = var.password
+        POSTGRES_USER     = "{{ secrets.postgres.root.user }}"
+        POSTGRES_PASSWORD = "{{ secrets.postgres.root.password }}"
       }
 
       resources {
-        cpu    = var.cpu
-        memory = var.memory
+        cpu    = {{postgres_config.cpu}}
+        memory = {{postgres_config.memory}}
       }
     }
   }

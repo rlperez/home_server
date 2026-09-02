@@ -5,3 +5,5 @@ postgres_config:
   image: docker.io/library/postgres:18-trixie
   nomad_job_path: /etc/nomad.d/jobs/postgres.nomad
   nomad_namespace: data
+  cpu: 500
+  memory: 1024
