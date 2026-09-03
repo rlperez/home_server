@@ -3,6 +3,7 @@ postgres_config:
     - homelab
   data_dir: /opt/postgres
   image: docker.io/library/postgres:18-trixie
+  port: 5432
   nomad_job_path: /etc/nomad.d/jobs/postgres.nomad
   nomad_namespace: data
   cpu: 500
