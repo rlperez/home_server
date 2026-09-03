@@ -1,0 +1,69 @@
+job "postgres" {
+  type        = "service"
+  datacenters = [{% for dc in postgres_config.datacenters %}"{{ dc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  namespace   = "{{ postgres_config.nomad_namespace }}"
+
+  update {
+    max_parallel     = 1
+    min_healthy_time = "10s"
+    healthy_deadline = "5m"
+    auto_revert      = true
+  }
+
+  group "postgres" {
+    count = 1
+
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "15s"
+      mode     = "delay"
+    }
+
+    network {
+      port "db" {
+        static = {{postgres_config.port}}
+        to     = {{postgres_config.port}}
+      }
+    }
+
+    service {
+      name     = "postgres"
+      port     = "db"
+      provider = "consul"
+
+      tags = [
+        "db",
+        "postgres",
+      ]
+
+      check {
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "postgres" {
+      driver = "podman"
+
+      config {
+        image = "{{postgres_config.image}}"
+        ports = ["db"]
+        volumes = [
+          "{{ postgres_config.data_dir }}/data:/var/lib/postgres:Z",
+        ]
+      }
+
+      env {
+        POSTGRES_USER     = "{{ secrets.postgres.root.user }}"
+        POSTGRES_PASSWORD = "{{ secrets.postgres.root.password }}"
+      }
+
+      resources {
+        cpu    = {{postgres_config.cpu}}
+        memory = {{postgres_config.memory}}
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 job "coredns" {
-  datacenters = ["homelab"]
+  datacenters = [{% for dc in coredns_config.datacenters %}"{{ dc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
   type        = "system"
 
   group "dns" {
