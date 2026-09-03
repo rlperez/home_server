@@ -26,8 +26,9 @@
             packages = with pkgs; [
               ansible
               ansible-lint
-              jq
               curl
+              jq
+              nomad
               vault
             ];
 
@@ -38,6 +39,7 @@
               echo "Vault: $(vault --version)"
               echo "Curl: $(curl --version | head -1)"
               echo "Jq: $(jq --version)"
+              echo "Nomad: $(nomad --version)"
 
               fish
             '';
