@@ -126,21 +126,13 @@
     - not token_file.stat.exists
     - nomad_acl_bootstrap.rc | default(1) == 0
 
-- name: Read current Nomad bootstrap token
-  ansible.builtin.slurp:
-    src: "{{ nomad_server.nomad.acl.bootstrap_token_file }}"
-  register: nomad_token_file
-
-- name: Set Nomad token fact
-  ansible.builtin.set_fact:
-    nomad_management_token: "{{ (nomad_token_file.content | b64decode | from_json).SecretID }}"
 
 - name: Check Nomad service status
   ansible.builtin.command: nomad status
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_CACERT: "{{ nomad_server.nomad.vault.ca_file }}"
-    NOMAD_TOKEN: "{{ nomad_management_token }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   register: nomad_status
   changed_when: false
   no_log: true
@@ -194,7 +186,7 @@
           {
             'secrets': {
               'nomad': {
-                'token': nomad_management_token.stdout | trim
+                'token': {{ secrets.nomad.token }}
               }
             }
           },
