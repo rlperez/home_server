@@ -1,0 +1,5 @@
+---
+forejo_config:
+  datacenters:
+    - homelab
+  nomad_job_path: "/etc/nomad.d/jobs/forejo.nomad"
