@@ -2,17 +2,32 @@
 forgejo_config:
   datacenters:
     - homelab
+  image: "codeberg.org/forgejo/forgejo:16"
   nomad_job_path: "/etc/nomad.d/jobs/forgejo.nomad"
-  domain: "git.home.arpa"
-  root_url: "https://{{ podman_user.domain }}/"
   uid: 1000
   gid: 1000
   data_dir: /opt/forgejo
-  http_port: 3000
-  ssh_port: 2222
-  db:
+  database:
     host: postgres.service.consul
     port: 5432
-  enable_actions: true
+  actions_enabled: true
   cpu: 1000
   memory: 1024
+  mailer:
+    enabled: true
+  server:
+    domain: "git.home.arpa"
+    root_url: "https://{{ podman_user.domain }}/"
+    http:
+      address: 0.0.0.0
+      port: 3000
+    ssh:
+      enabled: true
+      address: 0.0.0.0
+      port: 2222
+  service:
+    disable_registration: true
+    require_signin_view: false
+    enable_notify_mail: true
+  packages:
+    enabled: true
