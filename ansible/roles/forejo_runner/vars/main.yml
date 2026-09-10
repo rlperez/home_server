@@ -2,4 +2,8 @@
 forejo_config:
   datacenters:
     - homelab
-  nomad_job_path: "/etc/nomad.d/jobs/forejo.nomad"
+  nomad_job_path: "/etc/nomad.d/jobs/forejo_runner.nomad"
+  db:
+    name: "forejo"
+    host: "postgres.service.consul"
+    port: "5432"
