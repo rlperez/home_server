@@ -5,8 +5,8 @@
     login_port: "{{ forgejo_config.db.port }}"
     login_user: "{{ secrets.postgres.root.user }}"
     login_password: "{{ secrets.postgres.root.password }}"
-    name: "{{ secrets.postgres.forejo.user }}"
-    password: "{{ secrets.postgres.forejo.password }}"
+    name: "{{ secrets.postgres.forgejo.user }}"
+    password: "{{ secrets.postgres.forgejo.password }}"
     state: present
   no_log: true
 
@@ -16,23 +16,23 @@
     login_port: "{{ forgejo_config.db.port }}"
     login_user: "{{ secrets.postgres.root.user }}"
     login_password: "{{ secrets.postgres.root.password }}"
-    name: "{{ secrets.postgres.forejo.name }}"
-    owner: "{{ secrets.postgres.forejo.user }}"
+    name: "{{ secrets.postgres.forgejo.name }}"
+    owner: "{{ secrets.postgres.forgejo.user }}"
     encoding: UTF8
     state: present
   no_log: true
 
 - name: Create Forgejo data directory
   ansible.builtin.file:
-    path: "{{ forejo_config.data_dir }}"
+    path: "{{ forgejo_config.data_dir }}"
     state: directory
-    owner: "{{ forejo_config.uid }}"
-    group: "{{ forejo_config.gid }}"
+    owner: "{{ forgejo_config.uid }}"
+    group: "{{ forgejo_config.gid }}"
     mode: "0750"
 
 - name: Ensure Forgejo Nomad job directory exists
   ansible.builtin.file:
-    path: "{{ forejo_config.nomad_job_path | dirname }}"
+    path: "{{ forgejo_config.nomad_job_path | dirname }}"
     state: directory
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
@@ -41,7 +41,7 @@
 - name: Render Forgejo Nomad job
   ansible.builtin.template:
     src: "{{ role_path }}/templates/forgejo.nomad.j2"
-    dest: "{{ forejo_config.nomad_job_path }}"
+    dest: "{{ forgejo_config.nomad_job_path }}"
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0600"
@@ -49,7 +49,7 @@
 
 - name: Deploy Forgejo Nomad job
   ansible.builtin.command:
-    cmd: "nomad job run {{ forejo_config.nomad_job_path }}"
+    cmd: "nomad job run {{ forgejo_config.nomad_job_path }}"
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
@@ -70,7 +70,7 @@
 
 - name: Wait for Forgejo health endpoint
   ansible.builtin.uri:
-    url: "{{ forejo_config.root_url }}api/healthz"
+    url: "{{ forgejo_config.root_url }}api/healthz"
     method: GET
     status_code: 200
     validate_certs: false

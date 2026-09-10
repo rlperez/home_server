@@ -1,13 +1,13 @@
 ---
-forejo_config:
+forgejo_config:
   datacenters:
     - homelab
-  nomad_job_path: "/etc/nomad.d/jobs/forejo.nomad"
+  nomad_job_path: "/etc/nomad.d/jobs/forgejo.nomad"
   domain: "git.home.arpa"
   root_url: "https://{{ podman_user.domain }}/"
   uid: 1000
   gid: 1000
-  data_dir: /opt/forejo
+  data_dir: /opt/forgejo
   http_port: 3000
   ssh_port: 2222
   db:

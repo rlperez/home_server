@@ -17,7 +17,7 @@ caddy_config:
       upstream: "consul.service.consul:8500"
       tls_upstream: false
     - host: git.home.arpa
-      upstream: "forejo.service.consul:3000"
+      upstream: "forgejo.service.consul:3000"
       tls_upstream: true
   http_port: 80
   https_port: 443
