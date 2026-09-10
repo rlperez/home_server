@@ -1,0 +1,92 @@
+job "forgejo" {
+  datacenters = [{% for dc in forgejo_config.datacenters %}"{{ dc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  type = "service"
+
+  group "forgejo" {
+    count = 1
+
+    network {
+      mode = "host"
+
+      port "http" {
+        static = {{ forgejo_http_port }}
+      }
+
+      port "ssh" {
+        static = {{ forgejo_ssh_port }}
+      }
+    }
+
+    volume "forgejo-data" {
+      type      = "host"
+      source    = "forgejo-data"
+      read_only = false
+    }
+
+    service {
+      name = "forgejo"
+      port = "http"
+
+      check {
+        name     = "forgejo-http"
+        type     = "http"
+        path     = "/"
+        interval = "30s"
+        timeout  = "5s"
+      }
+    }
+
+    task "forgejo" {
+      driver = "podman"
+
+      config {
+        image = "{{ forgejo_config.image }}"
+      }
+
+      user = "{{ forgejo_config.uid }}:{{ forgejo_config.gid }}"
+
+      volume_mount {
+        volume      = "forgejo-data"
+        destination = "/var/lib/gitea"
+        read_only   = false
+      }
+
+      env {
+        USER_UID = "{{ forgejo_config.uid }}"
+        USER_GID = "{{ forgejo_config.gid }}"
+
+        FORGEJO__database__DB_TYPE = "postgres"
+        FORGEJO__database__HOST    = "{{ forgejo_config.database.host }}:{{ forgejo_config.database.port }}"
+        FORGEJO__database__NAME    = "{{ forgejo_config.database.name }}"
+        FORGEJO__database__USER    = "{{ secrets.postgres.forgejo.user }}"
+        FORGEJO__database__PASSWD  = "{{ secrets.postgres.forgejo.password }}"
+
+        FORGEJO__service__DISABLE_REGISTRATION = "{{ forgejo_config.service.disable_registration | string | lower }}"
+        FORGEJO__service__REQUIRE_SIGNIN_VIEW  = "{{ forgejo_config.service.require_signin_view | string | lower }}"
+        FORGEJO__service__ENABLE_NOTIFY_MAIL   = "{{ forgejo_config.service.enable_notify_mail | string | lower }}"
+
+        FORGEJO__server__DOMAIN           = "{{ forgejo_config.server.domain }}"
+        FORGEJO__server__ROOT_URL         = "{{ forgejo_config.server.root_url }}"
+        FORGEJO__server__PROTOCOL         = "http"
+        FORGEJO__server__HTTP_ADDR        = "{{ forgejo_config.server.http.address }}"
+        FORGEJO__server__HTTP_PORT        = "{{ forgejo_config.server.http.port }}"
+        FORGEJO__server__START_SSH_SERVER = "{{ forgejo_config.server.ssh.enabled | string | lower }}"
+        FORGEJO__server__SSH_PORT         = "{{ forgejo_config.server.ssh.port }}"
+
+        FORGEJO__actions__ENABLED = "{{ forgejo_config.actions_enabled | string | lower }}"
+
+        FORGEJO__mailer__ENABLED   = "{{ forgejo_config.mailer.enabled | string | lower }}"
+        FORGEJO__mailer__PROTOCOL  = "{{ secrets.forgejo.mailer.protocol }}"
+        FORGEJO__mailer__FROM      = "{{ secrets.forgejo.mailer.from }}"
+        FORGEJO__mailer__SMTP_ADDR = "{{ secrets.forgejo.mailer.smtp.addr }}"
+        FORGEJO__mailer__SMTP_PORT = "{{ secrets.forgejo.mailer.smtp.port }}"
+        FORGEJO__mailer__USER      = "{{ secrets.forgejo.mailer.smtp.user }}"
+      }
+
+      resources {
+        cpu    = {{ forgejo_config.cpu }}
+        memory = {{ forgejo_config.memory }}
+      }
+    }
+  }
+}
