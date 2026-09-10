@@ -10,8 +10,9 @@ forejo_config:
   data_dir: /opt/forejo
   http_port: 3000
   ssh_port: 2222
-  db_host: postgres.service.consul
-  db_port: 5432
+  db:
+    host: postgres.service.consul
+    port: 5432
   enable_actions: true
   cpu: 1000
   memory: 1024
