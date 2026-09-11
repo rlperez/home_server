@@ -1,6 +1,7 @@
 job "forgejo" {
   datacenters = [{% for dc in forgejo_config.datacenters %}"{{ dc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
   type = "service"
+  namespace   = "{{ forgejo_config.nomad_namespace }}"
 
   group "forgejo" {
     count = 1

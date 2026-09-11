@@ -4,6 +4,7 @@ forgejo_config:
     - homelab
   image: "codeberg.org/forgejo/forgejo:16"
   nomad_job_path: "/etc/nomad.d/jobs/forgejo.nomad"
+  nomad_namespace: "services"
   uid: 1000
   gid: 1000
   data_dir: /opt/forgejo

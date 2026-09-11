@@ -54,9 +54,24 @@
     immediate: true
     state: enabled
 
+- name: Ensure {{ forgejo_config.nomad_namespace }} namespace exists
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_CACERT: "{{ nomad_server.nomad.vault.ca_file }}"
+    NOMAD_CLIENT_CERT: "{{ nomad_server.nomad.vault.cert_file }}"
+    NOMAD_CLIENT_KEY: "{{ nomad_server.nomad.vault.key_file }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  ansible.builtin.command:
+    cmd: >
+      nomad namespace apply {{ forgejo_config.nomad_namespace }}
+  register: nomad_namespace_apply
+  changed_when: >
+    "Successfully applied namespace" in nomad_namespace_apply.stdout
+
 - name: Deploy Forgejo Nomad job
   ansible.builtin.command:
-    cmd: "nomad job run {{ forgejo_config.nomad_job_path }}"
+    cmd: "nomad job run -namespace {{ forgejo_config.nomad_namespace }} {{ forgejo_config.nomad_job_path }}"
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
@@ -92,3 +107,38 @@
     port: "{{ forgejo_config.mailer.smtp.port }}"
     timeout: 30
     state: started
+
+- name: Check whether Forgejo admin user exists
+  ansible.builtin.command:
+    cmd: >
+      nomad alloc exec
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      -job="{{ forgejo_config.nomad_job_name }}"
+      forgejo
+      forgejo admin user list --login_name "{{ forgejo_config.admin.username }}"
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: forgejo_admin_user
+  changed_when: false
+  failed_when: forgejo_admin_user.rc not in [0, 1]
+  no_log: true
+
+- name: Create Forgejo initial admin user
+  ansible.builtin.command:
+    cmd: >
+      nomad alloc exec
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      -job="{{ forgejo_config.nomad_job_name }}"
+      forgejo
+      forgejo admin user create
+      --username "{{ forgejo_config.admin.username }}"
+      --password "{{ secrets.forgejo.admin_password }}"
+      --email "{{ forgejo_config.admin.email }}"
+      --admin
+      --must-change-password=false
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  when: forgejo_admin_user.rc == 1
+  no_log: true
