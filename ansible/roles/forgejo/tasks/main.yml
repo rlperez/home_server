@@ -114,8 +114,8 @@
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
       -job="{{ forgejo_config.nomad_job_name }}"
-      forgejo
-      forgejo admin user list --login_name "{{ forgejo_config.admin.username }}"
+      -task=forgejo
+      forgejo admin user list --admin | grep {{ secrets.forgejo.admin.user }}
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
@@ -130,11 +130,12 @@
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
       -job="{{ forgejo_config.nomad_job_name }}"
-      forgejo
+      -task=forgejo
       forgejo admin user create
-      --username "{{ forgejo_config.admin.username }}"
-      --password "{{ secrets.forgejo.admin_password }}"
-      --email "{{ forgejo_config.admin.email }}"
+      --name "{{ secrets.forgejo.admin.name }}"
+      --username "{{ secrets.forgejo.admin.user }}"
+      --password "{{ secrets.forgejo.admin.password }}"
+      --email "{{ secrets.forgejo.admin.email }}"
       --admin
       --must-change-password=false
   environment:
