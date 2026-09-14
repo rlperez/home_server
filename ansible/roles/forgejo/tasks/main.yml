@@ -1,8 +1,8 @@
 ---
 - name: Create Forgejo PostgreSQL role
   community.postgresql.postgresql_user:
-    login_host: "{{ forgejo_config.db.host }}"
-    login_port: "{{ forgejo_config.db.port }}"
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
     login_user: "{{ secrets.postgres.root.user }}"
     login_password: "{{ secrets.postgres.root.password }}"
     name: "{{ secrets.postgres.forgejo.user }}"
@@ -12,8 +12,8 @@
 
 - name: Create Forgejo PostgreSQL database
   community.postgresql.postgresql_db:
-    login_host: "{{ forgejo_config.db.host }}"
-    login_port: "{{ forgejo_config.db.port }}"
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
     login_user: "{{ secrets.postgres.root.user }}"
     login_password: "{{ secrets.postgres.root.password }}"
     name: "{{ secrets.postgres.forgejo.name }}"
@@ -22,13 +22,16 @@
     state: present
   no_log: true
 
-- name: Create Forgejo data directory
+- name: Create Forgejo data directories
   ansible.builtin.file:
-    path: "{{ forgejo_config.data_dir }}"
+    path: "{{ item }}"
     state: directory
     owner: "{{ forgejo_config.uid }}"
     group: "{{ forgejo_config.gid }}"
     mode: "0750"
+  loop:
+    - "{{ forgejo_config.data_dir }}"
+    - "{{ forgejo_config.data_dir }}/gitea"
 
 - name: Ensure Forgejo Nomad job directory exists
   ansible.builtin.file:
