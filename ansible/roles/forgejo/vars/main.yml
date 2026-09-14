@@ -8,6 +8,9 @@ forgejo_config:
   uid: 1000
   gid: 1000
   data_dir: /opt/forgejo
+  cache:
+    adapter: "twoqueue"
+    host: "{\"size\":100,\"recent_ratio\":0.25,\"ghost_ratio\":0.5}"
   database:
     host: postgres.service.consul
     port: 5432
@@ -16,6 +19,10 @@ forgejo_config:
   memory: 1024
   mailer:
     enabled: true
+  packages:
+    enabled: true
+  security:
+    login_remember_days: 365
   server:
     domain: "git.home.arpa"
     root_url: "https://{{ podman_user.domain }}/"

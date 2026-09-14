@@ -56,11 +56,27 @@ job "forgejo" {
         USER_UID = "{{ forgejo_config.uid }}"
         USER_GID = "{{ forgejo_config.gid }}"
 
+        FORGEJO__actions__ENABLED = "{{ forgejo_config.actions_enabled | string | lower }}"
+
+        FORGEJO__cache__ADAPTER = "{{ forgejo_config.cache.adapter }}"
+        FORGEJO__cache__HOST    = "{{ forgejo_config.cache.host }}"
+
         FORGEJO__database__DB_TYPE = "postgres"
         FORGEJO__database__HOST    = "{{ forgejo_config.database.host }}:{{ forgejo_config.database.port }}"
         FORGEJO__database__NAME    = "{{ forgejo_config.database.name }}"
         FORGEJO__database__USER    = "{{ secrets.postgres.forgejo.user }}"
         FORGEJO__database__PASSWD  = "{{ secrets.postgres.forgejo.password }}"
+
+        FORGEJO__mailer__ENABLED   = "{{ forgejo_config.mailer.enabled | string | lower }}"
+        FORGEJO__mailer__PROTOCOL  = "{{ secrets.forgejo.mailer.protocol }}"
+        FORGEJO__mailer__FROM      = "{{ secrets.forgejo.mailer.from }}"
+        FORGEJO__mailer__SMTP_ADDR = "{{ secrets.forgejo.mailer.smtp.addr }}"
+        FORGEJO__mailer__SMTP_PORT = "{{ secrets.forgejo.mailer.smtp.port }}"
+        FORGEJO__mailer__USER      = "{{ secrets.forgejo.mailer.smtp.user }}"
+
+        FORGEJO__packages__ENABLED = "{{ forgejo_config.packages.enabled | string | lower }}"
+
+        FORGEJO__security__LOGIN_REMEMBER_DAYS = "{{ forgejo_config.security.login_remember_days }}"
 
         FORGEJO__service__DISABLE_REGISTRATION = "{{ forgejo_config.service.disable_registration | string | lower }}"
         FORGEJO__service__REQUIRE_SIGNIN_VIEW  = "{{ forgejo_config.service.require_signin_view | string | lower }}"
@@ -73,15 +89,6 @@ job "forgejo" {
         FORGEJO__server__HTTP_PORT        = "{{ forgejo_config.server.http.port }}"
         FORGEJO__server__START_SSH_SERVER = "{{ forgejo_config.server.ssh.enabled | string | lower }}"
         FORGEJO__server__SSH_PORT         = "{{ forgejo_config.server.ssh.port }}"
-
-        FORGEJO__actions__ENABLED = "{{ forgejo_config.actions_enabled | string | lower }}"
-
-        FORGEJO__mailer__ENABLED   = "{{ forgejo_config.mailer.enabled | string | lower }}"
-        FORGEJO__mailer__PROTOCOL  = "{{ secrets.forgejo.mailer.protocol }}"
-        FORGEJO__mailer__FROM      = "{{ secrets.forgejo.mailer.from }}"
-        FORGEJO__mailer__SMTP_ADDR = "{{ secrets.forgejo.mailer.smtp.addr }}"
-        FORGEJO__mailer__SMTP_PORT = "{{ secrets.forgejo.mailer.smtp.port }}"
-        FORGEJO__mailer__USER      = "{{ secrets.forgejo.mailer.smtp.user }}"
       }
 
       resources {
