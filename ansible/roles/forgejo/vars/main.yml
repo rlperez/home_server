@@ -2,7 +2,7 @@
 forgejo_config:
   datacenters:
     - homelab
-  image: "codeberg.org/forgejo/forgejo:16"
+  image: "codeberg.org/forgejo/forgejo:16-rootless"
   nomad_job_path: "/etc/nomad.d/jobs/forgejo.nomad"
   nomad_namespace: "services"
   uid: 1000
@@ -21,15 +21,19 @@ forgejo_config:
     enabled: true
   packages:
     enabled: true
+  repository:
+    signing:
+      default_trust_model: "committer``ss"
   security:
     login_remember_days: 365
   server:
     domain: "git.home.arpa"
-    root_url: "https://{{ podman_user.domain }}/"
+    root_url: "https://{{ forgejo_config.server.domain }}/"
     http:
       address: 0.0.0.0
       port: 3000
     ssh:
+      user: git
       enabled: true
       address: 0.0.0.0
       port: 2222
@@ -37,5 +41,3 @@ forgejo_config:
     disable_registration: true
     require_signin_view: false
     enable_notify_mail: true
-  packages:
-    enabled: true

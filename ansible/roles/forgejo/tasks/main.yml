@@ -106,8 +106,8 @@
 
 - name: Verify SMTP server is reachable
   ansible.builtin.wait_for:
-    host: "{{ forgejo_config.mailer.smtp.addr }}"
-    port: "{{ forgejo_config.mailer.smtp.port }}"
+    host: "{{ secrets.forgejo.mailer.smtp.addr }}"
+    port: "{{ secrets.forgejo.mailer.smtp.port }}"
     timeout: 30
     state: started
 
@@ -116,7 +116,7 @@
     cmd: >
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
-      -job="{{ forgejo_config.nomad_job_name }}"
+      -job="{{ forgejo_config.nomad_job_path }}"
       -task=forgejo
       forgejo admin user list --admin | grep {{ secrets.forgejo.admin.user }}
   environment:
@@ -132,7 +132,7 @@
     cmd: >
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
-      -job="{{ forgejo_config.nomad_job_name }}"
+      -job="{{ forgejo_config.nomad_job_path }}"
       -task=forgejo
       forgejo admin user create
       --name "{{ secrets.forgejo.admin.name }}"
