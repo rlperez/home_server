@@ -18,12 +18,6 @@ job "forgejo" {
       }
     }
 
-    volume "forgejo-data" {
-      type      = "host"
-      source    = "forgejo-data"
-      read_only = false
-    }
-
     service {
       name = "forgejo"
       port = "http"
@@ -46,11 +40,10 @@ job "forgejo" {
 
       user = "{{ forgejo_config.uid }}:{{ forgejo_config.gid }}"
 
-      volume_mount {
-        volume      = "forgejo-data"
-        destination = "/var/lib/gitea"
-        read_only   = false
-      }
+      volumes = [
+        "{{ forgejo_config.data_dir }}/gitea:/var/lib/gitea:Z",
+        "/etc/localtime:/etc/localtime:ro"
+      ]
 
       env {
         USER_UID = "{{ forgejo_config.uid }}"
@@ -77,6 +70,8 @@ job "forgejo" {
         FORGEJO__packages__ENABLED = "{{ forgejo_config.packages.enabled | string | lower }}"
 
         FORGEJO__security__LOGIN_REMEMBER_DAYS = "{{ forgejo_config.security.login_remember_days }}"
+
+        FORGEJO__repository__signing__DEFAULT_TRUST_MODEL = "{{ forgejo_config.repository.signing.default_trust_model }}"
 
         FORGEJO__service__DISABLE_REGISTRATION = "{{ forgejo_config.service.disable_registration | string | lower }}"
         FORGEJO__service__REQUIRE_SIGNIN_VIEW  = "{{ forgejo_config.service.require_signin_view | string | lower }}"
