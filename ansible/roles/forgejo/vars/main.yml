@@ -23,7 +23,7 @@ forgejo_config:
     enabled: true
   repository:
     signing:
-      default_trust_model: "committer``ss"
+      default_trust_model: "committers"
   security:
     login_remember_days: 365
   server:

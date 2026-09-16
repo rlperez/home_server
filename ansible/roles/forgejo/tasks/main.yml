@@ -74,7 +74,10 @@
 
 - name: Deploy Forgejo Nomad job
   ansible.builtin.command:
-    cmd: "nomad job run -namespace {{ forgejo_config.nomad_namespace }} {{ forgejo_config.nomad_job_path }}"
+    cmd: >
+      nomad job run
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      {{ forgejo_config.nomad_job_path }}
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
@@ -83,7 +86,9 @@
 
 - name: Wait for Forgejo Nomad job status
   ansible.builtin.command:
-    cmd: "nomad job status forgejo"
+    cmd: >
+      nomad job status forgejo
+      -namespace="{{ forgejo_config.nomad_namespace }}"
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
@@ -95,7 +100,7 @@
 
 - name: Wait for Forgejo health endpoint
   ansible.builtin.uri:
-    url: "{{ forgejo_config.root_url }}api/healthz"
+    url: "{{ forgejo_config.server.root_url }}api/healthz"
     method: GET
     status_code: 200
     validate_certs: false
@@ -103,6 +108,19 @@
   retries: 60
   delay: 5
   until: forgejo_health.status == 200
+
+- name: Wait for Forgejo HTTP service
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ forgejo_config.server.http.port }}/"
+    method: GET
+    status_code:
+      - 200
+      - 302
+      - 303
+  register: forgejo_health
+  retries: 60
+  delay: 5
+  until: forgejo_health.status in [200, 302, 303]
 
 - name: Verify SMTP server is reachable
   ansible.builtin.wait_for:
@@ -116,7 +134,7 @@
     cmd: >
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
-      -job="{{ forgejo_config.nomad_job_path }}"
+      -job="forgejo"
       -task=forgejo
       forgejo admin user list --admin | grep {{ secrets.forgejo.admin.user }}
   environment:
@@ -132,13 +150,13 @@
     cmd: >
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
-      -job="{{ forgejo_config.nomad_job_path }}"
+      -job="forgejo"
       -task=forgejo
       forgejo admin user create
-      --name "{{ secrets.forgejo.admin.name }}"
-      --username "{{ secrets.forgejo.admin.user }}"
-      --password "{{ secrets.forgejo.admin.password }}"
-      --email "{{ secrets.forgejo.admin.email }}"
+      --name="{{ secrets.forgejo.admin.name }}"
+      --username="{{ secrets.forgejo.admin.user }}"
+      --password="{{ secrets.forgejo.admin.password }}"
+      --email="{{ secrets.forgejo.admin.email }}"
       --admin
       --must-change-password=false
   environment:

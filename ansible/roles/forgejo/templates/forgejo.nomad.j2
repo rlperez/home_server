@@ -56,16 +56,17 @@ job "forgejo" {
 
         FORGEJO__database__DB_TYPE = "postgres"
         FORGEJO__database__HOST    = "{{ forgejo_config.database.host }}:{{ forgejo_config.database.port }}"
-        FORGEJO__database__NAME    = "{{ forgejo_config.database.name }}"
-        FORGEJO__database__USER    = "{{ secrets.postgres.forgejo.user }}"
-        FORGEJO__database__PASSWD  = "{{ secrets.postgres.forgejo.password }}"
+        FORGEJO__database__NAME    = "{{ secrets.forgejo.database.name }}"
+        FORGEJO__database__USER    = "{{ secrets.forgejo.database.user }}"
+        FORGEJO__database__PASSWD  = "{{ secrets.forgejo.database.password }}"
 
         FORGEJO__mailer__ENABLED   = "{{ forgejo_config.mailer.enabled | string | lower }}"
         FORGEJO__mailer__PROTOCOL  = "{{ secrets.forgejo.mailer.protocol }}"
         FORGEJO__mailer__FROM      = "{{ secrets.forgejo.mailer.from }}"
-        FORGEJO__mailer__SMTP_ADDR = "{{ secrets.forgejo.mailer.smtp.addr }}"
-        FORGEJO__mailer__SMTP_PORT = "{{ secrets.forgejo.mailer.smtp.port }}"
-        FORGEJO__mailer__USER      = "{{ secrets.forgejo.mailer.smtp.user }}"
+        FORGEJO__mailer__SMTP_ADDR = "{{ secrets.forgejo.mailer.addr }}"
+        FORGEJO__mailer__SMTP_PORT = "{{ secrets.forgejo.mailer.port }}"
+        FORGEJO__mailer__USER      = "{{ secrets.forgejo.mailer.user }}"
+        FORGEJO__mailer__PASSWD    = "{{ secrets.forgejo.mailer.password }}"
 
         FORGEJO__packages__ENABLED = "{{ forgejo_config.packages.enabled | string | lower }}"
 
