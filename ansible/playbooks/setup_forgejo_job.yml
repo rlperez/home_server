@@ -1,0 +1,9 @@
+---
+- name: Setup forgejo Job
+  hosts: "{{ target_hosts | default('nomad_servers') }}"
+  become: true
+  gather_facts: true
+  roles:
+    - podman_rootless
+#    - forgejo
+#    - forgejo_runner

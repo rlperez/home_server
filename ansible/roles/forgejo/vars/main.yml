@@ -1,0 +1,43 @@
+---
+forgejo_config:
+  datacenters:
+    - homelab
+  image: "codeberg.org/forgejo/forgejo:16-rootless"
+  nomad_job_path: "/etc/nomad.d/jobs/forgejo.nomad"
+  nomad_namespace: "services"
+  uid: 1000
+  gid: 1000
+  data_dir: /opt/forgejo
+  cache:
+    adapter: "twoqueue"
+    host: "{\"size\":100,\"recent_ratio\":0.25,\"ghost_ratio\":0.5}"
+  database:
+    host: postgres.service.consul
+    port: 5432
+  actions_enabled: true
+  cpu: 1000
+  memory: 1024
+  mailer:
+    enabled: true
+  packages:
+    enabled: true
+  repository:
+    signing:
+      default_trust_model: "committers"
+  security:
+    login_remember_days: 365
+  server:
+    domain: "git.home.arpa"
+    root_url: "https://{{ forgejo_config.server.domain }}/"
+    http:
+      address: 0.0.0.0
+      port: 3000
+    ssh:
+      user: git
+      enabled: true
+      address: 0.0.0.0
+      port: 2222
+  service:
+    disable_registration: true
+    require_signin_view: false
+    enable_notify_mail: true
