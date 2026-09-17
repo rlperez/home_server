@@ -1,12 +1,17 @@
 ---
+- name: Install Python PostgreSQL driver
+  ansible.builtin.dnf:
+    name: python3-psycopg2
+    state: present
+
 - name: Create Forgejo PostgreSQL role
   community.postgresql.postgresql_user:
     login_host: "{{ forgejo_config.database.host }}"
     login_port: "{{ forgejo_config.database.port }}"
     login_user: "{{ secrets.postgres.root.user }}"
     login_password: "{{ secrets.postgres.root.password }}"
-    name: "{{ secrets.postgres.forgejo.user }}"
-    password: "{{ secrets.postgres.forgejo.password }}"
+    name: "{{ secrets.forgejo.database.user }}"
+    password: "{{ secrets.forgejo.database.password }}"
     state: present
   no_log: true
 
@@ -16,8 +21,8 @@
     login_port: "{{ forgejo_config.database.port }}"
     login_user: "{{ secrets.postgres.root.user }}"
     login_password: "{{ secrets.postgres.root.password }}"
-    name: "{{ secrets.postgres.forgejo.name }}"
-    owner: "{{ secrets.postgres.forgejo.user }}"
+    name: "{{ forgejo_config.database.name }}"
+    owner: "{{ secrets.forgejo.database.user }}"
     encoding: UTF8
     state: present
   no_log: true
