@@ -5,5 +5,5 @@
   gather_facts: true
   roles:
     - podman_rootless
-#    - forgejo
+    - forgejo
 #    - forgejo_runner
