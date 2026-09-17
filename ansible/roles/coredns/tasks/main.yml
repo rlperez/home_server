@@ -18,27 +18,38 @@
       [Resolve]
       DNSStubListener=no
 
-- name: Configure upstream DNS for resolved
+- name: Configure systemd-resolved to use CoreDNS
   ansible.builtin.copy:
-    dest: /etc/systemd/resolved.conf.d/10-upstream.conf
+    dest: /etc/systemd/resolved.conf.d/10-coredns.conf
     mode: "0644"
     content: |
       [Resolve]
-      DNS=9.9.9.9 149.112.112.112
-      FallbackDNS=1.1.1.2 1.0.0.2
+      DNS=127.0.0.1
+      FallbackDNS=
+  register: resolved_config
+
+- name: Ensure NetworkManager does not use DHCP-provided DNS
+  community.general.nmcli:
+    conn_name: "{{ active_conn.stdout }}"
+    type: wifi
+    dns4:
+      - 127.0.0.1
+    dns4_ignore_auto: true
+    state: present
+  register: network_dns_config
+
+- name: Ensure resolv.conf is managed by resolved
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
 
 - name: Restart systemd-resolved (apply config once)
   ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
     enabled: true
-
-- name: Ensure resolv.conf is managed by resolved
-  ansible.builtin.file:
-    src: /run/systemd/resolve/stub-resolv.conf
-    dest: /etc/resolv.conf
-    state: link
-    force: true
 
 - name: Render CoreDNS Corefile
   ansible.builtin.template:
@@ -95,17 +106,26 @@
     method6: manual
     state: present
 
-- name: Restart systemd-resolved (free port 53)
+- name: Reapply NetworkManager DNS configuration
+  ansible.builtin.command:
+    cmd: >
+      nmcli device reapply {{ ansible_default_ipv4.interface }}
+  when: network_dns_config.changed
+  changed_when: true
+
+- name: Restart systemd-resolved after NetworkManager DNS configuration
   ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
+  when: network_dns_config.changed
 
 - name: Check port 53 usage
   ansible.builtin.command: ss -ltnup
   register: port_check
   changed_when: false
 
-- debug:
+- name: Display port 53 usage
+  ansible.builtin.debug:
     var: port_check.stdout
 
 - name: Run CoreDNS Nomad job
@@ -131,17 +151,36 @@
   delay: 3
   until: dns_check.rc == 0
 
-- name: Force systemd-resolved to use CoreDNS only for LAN
-  ansible.builtin.copy:
-    dest: /etc/systemd/resolved.conf.d/00-coredns.conf
-    mode: "0644"
-    content: |
-      [Resolve]
-      DNS=127.0.0.1
-      FallbackDNS=
-      Domains=~home.arpa ~consul
+- name: Wait for CoreDNS home.arpa resolution
+  ansible.builtin.command:
+    cmd: >
+      dig @127.0.0.1 home.arpa
+  register: dns_check
+  retries: 10
+  delay: 3
+  until: dns_check.rc == 0
+  changed_when: false
 
-- name: Restart systemd-resolved (use CoreDNS)
-  ansible.builtin.systemd:
-    name: systemd-resolved
-    state: restarted
+- name: Wait for CoreDNS Consul resolution
+  ansible.builtin.command:
+    cmd: >
+      dig @127.0.0.1 postgres.service.consul
+  register: consul_dns_check
+  retries: 10
+  delay: 3
+  until:
+    - consul_dns_check.rc == 0
+    - "'192.168.0.168' in consul_dns_check.stdout"
+  changed_when: false
+
+- name: Verify systemd-resolved resolves Consul services
+  ansible.builtin.command:
+    cmd: >
+      resolvectl query postgres.service.consul
+  register: resolved_consul_check
+  retries: 10
+  delay: 3
+  until:
+    - resolved_consul_check.rc == 0
+    - "'192.168.0.168' in resolved_consul_check.stdout"
+  changed_when: false
