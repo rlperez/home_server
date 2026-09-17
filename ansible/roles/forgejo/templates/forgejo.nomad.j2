@@ -10,11 +10,11 @@ job "forgejo" {
       mode = "host"
 
       port "http" {
-        static = {{ forgejo_http_port }}
+        static = {{ forgejo_config.server.http.port }}
       }
 
       port "ssh" {
-        static = {{ forgejo_ssh_port }}
+        static = {{ forgejo_config.server.ssh.port }}
       }
     }
 
@@ -52,7 +52,7 @@ job "forgejo" {
         FORGEJO__actions__ENABLED = "{{ forgejo_config.actions_enabled | string | lower }}"
 
         FORGEJO__cache__ADAPTER = "{{ forgejo_config.cache.adapter }}"
-        FORGEJO__cache__HOST    = "{{ forgejo_config.cache.host }}"
+        FORGEJO__cache__HOST    = {{ forgejo_config.cache.host | to_json }}
 
         FORGEJO__database__DB_TYPE = "postgres"
         FORGEJO__database__HOST    = "{{ forgejo_config.database.host }}:{{ forgejo_config.database.port }}"
@@ -63,7 +63,7 @@ job "forgejo" {
         FORGEJO__mailer__ENABLED   = "{{ forgejo_config.mailer.enabled | string | lower }}"
         FORGEJO__mailer__PROTOCOL  = "{{ secrets.forgejo.mailer.protocol }}"
         FORGEJO__mailer__FROM      = "{{ secrets.forgejo.mailer.from }}"
-        FORGEJO__mailer__SMTP_ADDR = "{{ secrets.forgejo.mailer.addr }}"
+        FORGEJO__mailer__SMTP_ADDR = "{{ secrets.forgejo.mailer.address }}"
         FORGEJO__mailer__SMTP_PORT = "{{ secrets.forgejo.mailer.port }}"
         FORGEJO__mailer__USER      = "{{ secrets.forgejo.mailer.user }}"
         FORGEJO__mailer__PASSWD    = "{{ secrets.forgejo.mailer.password }}"
