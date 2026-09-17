@@ -52,7 +52,7 @@ job "forgejo" {
         FORGEJO__actions__ENABLED = "{{ forgejo_config.actions_enabled | string | lower }}"
 
         FORGEJO__cache__ADAPTER = "{{ forgejo_config.cache.adapter }}"
-        FORGEJO__cache__HOST    = {{ forgejo_config.cache.host | to_json }}
+        FORGEJO__cache__HOST    = "{{ forgejo_config.cache.host | replace('"', '\\"') }}"
 
         FORGEJO__database__DB_TYPE = "postgres"
         FORGEJO__database__HOST    = "{{ forgejo_config.database.host }}:{{ forgejo_config.database.port }}"
