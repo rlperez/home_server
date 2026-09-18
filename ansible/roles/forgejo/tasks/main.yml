@@ -92,10 +92,10 @@
 - name: Wait for Forgejo Nomad job status
   ansible.builtin.command:
     cmd: >
-      nomad job status forgejo
-      -namespace="{{ forgejo_config.nomad_namespace }}"
+      nomad job status -namespace="{{ forgejo_config.nomad_namespace }}" forgejo
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   register: forgejo_nomad_status
   retries: 30
