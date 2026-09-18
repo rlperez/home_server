@@ -36,14 +36,14 @@ job "forgejo" {
 
       config {
         image = "{{ forgejo_config.image }}"
+        network_mode = "host"
+        volumes = [
+            "{{ forgejo_config.data_dir }}/gitea:/var/lib/gitea:Z",
+            "/etc/localtime:/etc/localtime:ro"
+        ]
       }
 
       user = "{{ forgejo_config.uid }}:{{ forgejo_config.gid }}"
-
-      volumes = [
-        "{{ forgejo_config.data_dir }}/gitea:/var/lib/gitea:Z",
-        "/etc/localtime:/etc/localtime:ro"
-      ]
 
       env {
         USER_UID = "{{ forgejo_config.uid }}"
