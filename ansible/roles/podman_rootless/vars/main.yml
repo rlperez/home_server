@@ -1,0 +1,4 @@
+podman_rootless:
+  user: admin
+  uid: 1000
+  gid: 1000

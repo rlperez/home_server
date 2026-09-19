@@ -1,0 +1,235 @@
+---
+- name: Install Python PostgreSQL driver
+  ansible.builtin.dnf:
+    name: python3-psycopg2
+    state: present
+
+- name: Create Forgejo PostgreSQL role
+  community.postgresql.postgresql_user:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    name: "{{ secrets.forgejo.database.user }}"
+    password: "{{ secrets.forgejo.database.password }}"
+    state: present
+  no_log: true
+
+- name: Create Forgejo PostgreSQL database
+  community.postgresql.postgresql_db:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    name: "{{ forgejo_config.database.name }}"
+    owner: "{{ secrets.forgejo.database.user }}"
+    encoding: UTF8
+    state: present
+  no_log: true
+
+- name: Create Forgejo PostgreSQL schema
+  community.postgresql.postgresql_schema:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    database: "{{ forgejo_config.database.name }}"
+    name: "{{ forgejo_config.database.schema }}"
+    owner: "{{ secrets.forgejo.database.user }}"
+    state: present
+  no_log: true
+
+- name: Grant Forgejo user usage on Forgejo schema
+  community.postgresql.postgresql_privs:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    database: "{{ forgejo_config.database.name }}"
+    type: schema
+    objs: "{{ forgejo_config.database.schema }}"
+    roles: "{{ secrets.forgejo.database.user }}"
+    privs: USAGE
+    state: present
+  no_log: true
+
+- name: Grant Forgejo user create on Forgejo schema
+  community.postgresql.postgresql_privs:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    database: "{{ forgejo_config.database.name }}"
+    type: schema
+    objs: "{{ forgejo_config.database.schema }}"
+    roles: "{{ secrets.forgejo.database.user }}"
+    privs: CREATE
+    state: present
+  no_log: true
+
+- name: Create Forgejo data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ forgejo_config.uid }}"
+    group: "{{ forgejo_config.gid }}"
+    mode: "0750"
+  loop:
+    - "{{ forgejo_config.data_dir }}"
+    - "{{ forgejo_config.data_dir }}/gitea"
+
+- name: Ensure Forgejo Nomad job directory exists
+  ansible.builtin.file:
+    path: "{{ forgejo_config.nomad_job_path | dirname }}"
+    state: directory
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0755"
+
+- name: Render Forgejo Nomad job
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/forgejo.nomad.j2"
+    dest: "{{ forgejo_config.nomad_job_path }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.group }}"
+    mode: "0600"
+  register: forgejo_nomad_template
+
+- name: Allow Forgejo SSH through firewalld
+  ansible.posix.firewalld:
+    port: "{{ forgejo_config.server.ssh.port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Ensure {{ forgejo_config.nomad_namespace }} namespace exists
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_CACERT: "{{ nomad_server.nomad.vault.ca_file }}"
+    NOMAD_CLIENT_CERT: "{{ nomad_server.nomad.vault.cert_file }}"
+    NOMAD_CLIENT_KEY: "{{ nomad_server.nomad.vault.key_file }}"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  ansible.builtin.command:
+    cmd: >
+      nomad namespace apply {{ forgejo_config.nomad_namespace }}
+  register: nomad_namespace_apply
+  changed_when: >
+    "Successfully applied namespace" in nomad_namespace_apply.stdout
+
+- name: Deploy Forgejo Nomad job
+  ansible.builtin.command:
+    cmd: >
+      nomad job run
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      {{ forgejo_config.nomad_job_path }}
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  changed_when: true
+
+- name: Wait for Forgejo Nomad job status
+  ansible.builtin.command:
+    cmd: >
+      nomad job status -namespace="{{ forgejo_config.nomad_namespace }}" forgejo
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: forgejo_nomad_status
+  retries: 30
+  delay: 2
+  until: forgejo_nomad_status.rc == 0
+  changed_when: false
+
+- name: Wait for Forgejo health endpoint
+  ansible.builtin.uri:
+    url: "{{ forgejo_config.server.root_url }}api/healthz"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: forgejo_health
+  retries: 60
+  delay: 5
+  until: forgejo_health.status == 200
+
+- name: Wait for Forgejo HTTP service
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ forgejo_config.server.http.port }}/"
+    method: GET
+    status_code:
+      - 200
+      - 302
+      - 303
+  register: forgejo_health
+  retries: 60
+  delay: 5
+  until: forgejo_health.status in [200, 302, 303]
+
+- name: Verify SMTP server is reachable
+  ansible.builtin.wait_for:
+    host: "{{ secrets.forgejo.mailer.address }}"
+    port: "{{ secrets.forgejo.mailer.port }}"
+    timeout: 30
+    state: started
+
+- name: Get running Forgejo allocation
+  ansible.builtin.command:
+    cmd: >
+      nomad job allocs
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      -json
+      forgejo
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: forgejo_allocs
+  changed_when: false
+
+- name: Set Forgejo allocation ID
+  ansible.builtin.set_fact:
+    forgejo_alloc_id: >-
+      {{
+        (forgejo_allocs.stdout | from_json)
+        | selectattr('ClientStatus', 'equalto', 'running')
+        | map(attribute='ID')
+        | first
+      }}
+
+- name: Check whether Forgejo admin user exists
+  ansible.builtin.command:
+    cmd: >
+      nomad alloc exec
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      -task=forgejo
+      {{ forgejo_alloc_id }}
+      forgejo --config=/var/lib/gitea/custom/conf/app.ini admin user list --admin
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: forgejo_admin_user
+  changed_when: false
+  no_log: true
+
+- name: Create Forgejo initial admin user
+  ansible.builtin.command:
+    cmd: >
+      nomad alloc exec
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      -task=forgejo
+      {{ forgejo_alloc_id }}
+      forgejo  --config=/var/lib/gitea/custom/conf/app.ini admin user create
+      --username="{{ secrets.forgejo.admin.user }}"
+      --password="{{ secrets.forgejo.admin.password }}"
+      --email="{{ secrets.forgejo.admin.email }}"
+      --admin
+      --must-change-password=false
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  when: forgejo_admin_user.stdout is not search(secrets.forgejo.admin.user)
+  no_log: true

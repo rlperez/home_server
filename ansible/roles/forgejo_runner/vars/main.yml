@@ -1,0 +1,9 @@
+---
+forgejo_config:
+  datacenters:
+    - homelab
+  nomad_job_path: "/etc/nomad.d/jobs/forgejo_runner.nomad"
+  db:
+    name: "forgejo"
+    host: "postgres.service.consul"
+    port: "5432"
