@@ -14,6 +14,7 @@ forgejo_config:
   database:
     host: postgres.service.consul
     name: "forgejo"
+    schema: "forgejo"
     port: 5432
   actions_enabled: true
   cpu: 1000

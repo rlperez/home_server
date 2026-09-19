@@ -27,6 +27,46 @@
     state: present
   no_log: true
 
+- name: Create Forgejo PostgreSQL schema
+  community.postgresql.postgresql_schema:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    database: "{{ forgejo_config.database.name }}"
+    name: "{{ forgejo_config.database.schema }}"
+    owner: "{{ secrets.forgejo.database.user }}"
+    state: present
+  no_log: true
+
+- name: Grant Forgejo user usage on Forgejo schema
+  community.postgresql.postgresql_privs:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    database: "{{ forgejo_config.database.name }}"
+    type: schema
+    objs: "{{ forgejo_config.database.schema }}"
+    roles: "{{ secrets.forgejo.database.user }}"
+    privs: USAGE
+    state: present
+  no_log: true
+
+- name: Grant Forgejo user create on Forgejo schema
+  community.postgresql.postgresql_privs:
+    login_host: "{{ forgejo_config.database.host }}"
+    login_port: "{{ forgejo_config.database.port }}"
+    login_user: "{{ secrets.postgres.root.user }}"
+    login_password: "{{ secrets.postgres.root.password }}"
+    database: "{{ forgejo_config.database.name }}"
+    type: schema
+    objs: "{{ forgejo_config.database.schema }}"
+    roles: "{{ secrets.forgejo.database.user }}"
+    privs: CREATE
+    state: present
+  no_log: true
+
 - name: Create Forgejo data directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -129,35 +169,59 @@
 
 - name: Verify SMTP server is reachable
   ansible.builtin.wait_for:
-    host: "{{ secrets.forgejo.mailer.smtp.addr }}"
-    port: "{{ secrets.forgejo.mailer.smtp.port }}"
+    host: "{{ secrets.forgejo.mailer.address }}"
+    port: "{{ secrets.forgejo.mailer.port }}"
     timeout: 30
     state: started
+
+- name: Get running Forgejo allocation
+  ansible.builtin.command:
+    cmd: >
+      nomad job allocs
+      -namespace="{{ forgejo_config.nomad_namespace }}"
+      -json
+      forgejo
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: forgejo_allocs
+  changed_when: false
+
+- name: Set Forgejo allocation ID
+  ansible.builtin.set_fact:
+    forgejo_alloc_id: >-
+      {{
+        (forgejo_allocs.stdout | from_json)
+        | selectattr('ClientStatus', 'equalto', 'running')
+        | map(attribute='ID')
+        | first
+      }}
 
 - name: Check whether Forgejo admin user exists
   ansible.builtin.command:
     cmd: >
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
-      -job="forgejo"
       -task=forgejo
-      forgejo admin user list --admin | grep {{ secrets.forgejo.admin.user }}
+      {{ forgejo_alloc_id }}
+      forgejo --config=/var/lib/gitea/custom/conf/app.ini admin user list --admin
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   register: forgejo_admin_user
   changed_when: false
-  failed_when: forgejo_admin_user.rc not in [0, 1]
-  no_log: true
+  no_log: false
 
 - name: Create Forgejo initial admin user
   ansible.builtin.command:
     cmd: >
       nomad alloc exec
       -namespace="{{ forgejo_config.nomad_namespace }}"
-      -job="forgejo"
       -task=forgejo
-      forgejo admin user create
+      {{ forgejo_alloc_id }}
+      forgejo  --config=/var/lib/gitea/custom/conf/app.ini admin user create
       --name="{{ secrets.forgejo.admin.name }}"
       --username="{{ secrets.forgejo.admin.user }}"
       --password="{{ secrets.forgejo.admin.password }}"
@@ -166,6 +230,7 @@
       --must-change-password=false
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
-  when: forgejo_admin_user.rc == 1
+  when: forgejo_admin_user.stdout is not search(secrets.forgejo.admin.user)
   no_log: true
