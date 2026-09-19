@@ -212,7 +212,7 @@
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   register: forgejo_admin_user
   changed_when: false
-  no_log: false
+  no_log: true
 
 - name: Create Forgejo initial admin user
   ansible.builtin.command:
@@ -222,7 +222,6 @@
       -task=forgejo
       {{ forgejo_alloc_id }}
       forgejo  --config=/var/lib/gitea/custom/conf/app.ini admin user create
-      --name="{{ secrets.forgejo.admin.name }}"
       --username="{{ secrets.forgejo.admin.user }}"
       --password="{{ secrets.forgejo.admin.password }}"
       --email="{{ secrets.forgejo.admin.email }}"
