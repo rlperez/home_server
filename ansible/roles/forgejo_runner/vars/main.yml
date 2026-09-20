@@ -1,9 +1,29 @@
 ---
-forgejo_config:
+forgejo_runner_config:
   datacenters:
     - homelab
-  nomad_job_path: "/etc/nomad.d/jobs/forgejo_runner.nomad"
-  db:
-    name: "forgejo"
-    host: "postgres.service.consul"
-    port: "5432"
+  image: "data.forgejo.org/forgejo/runner:13"
+
+  name: "home-server-1"
+
+  instance: "https://git.home.arpa"
+
+  namespace: "services"
+  nomad_job_path: "/etc/nomad.d/jobs/forgejo-runner.nomad"
+
+  data_dir: "/opt/forgejo-runner"
+  config_path: "/opt/forgejo-runner/config.yml"
+
+  uid: 1000
+  gid: 1000
+
+  podman_socket: "/run/user/1000/podman/podman.sock"
+
+  resources:
+    cpu: 500
+    memory: 512
+
+  labels:
+    - "node:docker://node:22-bookworm"
+    - "clojure:docker://clojure:temurin-21-tools-deps"
+    - "elixir:docker://elixir:1.18-otp-28"
