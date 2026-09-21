@@ -77,6 +77,7 @@
   loop:
     - "{{ forgejo_config.data_dir }}"
     - "{{ forgejo_config.data_dir }}/gitea"
+    - "{{ forgejo_config.data_dir }}/data"
 
 - name: Ensure Forgejo Nomad job directory exists
   ansible.builtin.file:
