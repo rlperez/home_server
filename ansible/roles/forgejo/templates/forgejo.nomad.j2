@@ -39,6 +39,7 @@ job "forgejo" {
         network_mode = "host"
         volumes = [
             "{{ forgejo_config.data_dir }}/gitea:/var/lib/gitea:Z",
+            "{{ forgejo_config.data_dir }}/data:/var/lib/postgres:Z",
             "/etc/localtime:/etc/localtime:ro"
         ]
       }
