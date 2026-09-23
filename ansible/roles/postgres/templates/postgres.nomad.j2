@@ -51,7 +51,7 @@ job "postgres" {
         image = "{{postgres_config.image}}"
         ports = ["db"]
         volumes = [
-          "{{ postgres_config.data_dir }}/data:/var/lib/postgres:Z",
+          "{{ postgres_config.data_dir }}/data:/var/lib/postgresql:Z",
         ]
         args = [
           "-c", "shared_preload_libraries=pg_stat_statements",
