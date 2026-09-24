@@ -36,6 +36,9 @@ job "forgejo" {
 
       config {
         image = "{{ forgejo_config.image }}"
+        logging {
+            driver = "journald"
+        }
         network_mode = "host"
         volumes = [
             "{{ forgejo_config.data_dir }}/gitea:/var/lib/gitea:Z",
