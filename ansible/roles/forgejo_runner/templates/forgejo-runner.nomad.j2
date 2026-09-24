@@ -1,0 +1,61 @@
+job "forgejo-runner" {
+  datacenters = [{% for dc in forgejo_runner_config.datacenters %}"{{ dc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  namespace   = "{{ forgejo_runner_config.namespace }}"
+  type        = "service"
+
+  group "runner" {
+    count = 1
+
+    restart {
+      attempts = 3
+      interval = "30m"
+      delay    = "15s"
+      mode     = "delay"
+    }
+
+    task "runner" {
+      driver = "podman"
+
+      config {
+        image = "{{ forgejo_runner_config.image }}"
+
+        command = "forgejo-runner"
+        args = [
+          "daemon",
+          "-c",
+          "/data/config.yml"
+        ]
+
+        user = "{{ forgejo_runner_config.uid }}"
+      }
+
+      env {
+        HOME            = "/data"
+        XDG_RUNTIME_DIR = "/run/user/1000"
+      }
+
+      volume_mount {
+        volume      = "runner-data"
+        destination = "/data"
+        read_only   = false
+      }
+
+      resources {
+        cpu    = {{ forgejo_runner_config.resources.cpu }}
+        memory = {{ forgejo_runner_config.resources.memory }}
+      }
+    }
+
+    volume "runner-data" {
+      type      = "host"
+      source    = "forgejo-runner"
+      read_only = false
+    }
+
+    volume "podman-socket" {
+      type      = "host"
+      source    = "podman-socket"
+      read_only = false
+    }
+  }
+}

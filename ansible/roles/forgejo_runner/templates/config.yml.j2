@@ -1,0 +1,40 @@
+log:
+  level: info
+  job_level: info
+
+runner:
+  file: /data/.runner
+  capacity: 1
+  timeout: 3h
+
+container:
+  network: ""
+  enable_ipv6: false
+  privileged: false
+
+  docker_host: unix:///run/user/1000/podman/podman.sock
+
+  options: ""
+
+  workdir_parent: /workspace
+
+  valid_volumes:
+    - "**"
+
+  force_pull: false
+  force_rebuild: false
+
+host:
+  workdir_parent: /data/workspace
+
+cache:
+  enabled: true
+  dir: /data/cache
+
+  host: ""
+
+  port: 0
+
+  external_server: ""
+
+  external_server_protocol: http

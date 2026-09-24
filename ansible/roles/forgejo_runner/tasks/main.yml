@@ -1,0 +1,56 @@
+---
+- name: Create Forgejo Runner data directory
+  ansible.builtin.file:
+    path: "{{ forgejo_runner_config.data_dir }}"
+    state: directory
+    owner: "{{ forgejo_runner_config.uid }}"
+    group: "{{ forgejo_runner_config.gid }}"
+    mode: "0755"
+
+- name: Create Forgejo Runner config
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ forgejo_runner_config.config_path }}"
+    owner: "{{ forgejo_runner_config.uid }}"
+    group: "{{ forgejo_runner_config.gid }}"
+    mode: "0600"
+
+- name: Create Forgejo Runner Nomad job
+  ansible.builtin.template:
+    src: forgejo-runner.nomad.j2
+    dest: "{{ forgejo_runner_config.nomad_job_path }}"
+    owner: "{{ nomad_server.nomad.user.name }}"
+    group: "{{ nomad_server.nomad.user.name }}"
+    mode: "0644"
+
+- name: Run Forgejo Runner Nomad job
+  ansible.builtin.command:
+    cmd: >
+      nomad job run
+      -namespace={{ forgejo_runner_config.namespace }}
+      {{ forgejo_runner_config.nomad_job_path }}
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: forgejo_runner_nomad_job
+  changed_when: >
+    'Job registration successful' in forgejo_runner_nomad_job.stdout
+
+- name: Wait for Forgejo Runner allocation
+  ansible.builtin.command:
+    cmd: >
+      nomad job status
+      -namespace={{ forgejo_runner_config.namespace }}
+      forgejo-runner
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: forgejo_runner_status
+  changed_when: false
+  retries: 12
+  delay: 5
+  until:
+    - forgejo_runner_status.rc == 0
+    - "'running' in forgejo_runner_status.stdout | lower"

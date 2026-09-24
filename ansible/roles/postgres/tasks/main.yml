@@ -3,8 +3,8 @@
   ansible.builtin.file:
     path: "{{ postgres_config.data_dir }}/data/18/docker"
     state: directory
-    owner: "{{ nomad_server.nomad.user.name }}"
-    group: "{{ nomad_server.nomad.user.group }}"
+    owner: "{{ postgres_config.uid }}"
+    group: "{{ postgres_config.gid }}"
     mode: "0750"
 
 - name: Ensure {{ postgres_config.nomad_namespace }} namespace exists
@@ -59,7 +59,6 @@
 - name: Open Postgres port in firewalld
   ansible.posix.firewalld:
     service: postgresql
-    # port: "{{ postgres_config.port | default(5432) }}/tcp" # Use this instead if using a non-standard port
     permanent: true
     state: enabled
     immediate: true

@@ -4,6 +4,8 @@ postgres_config:
   data_dir: /opt/postgres
   image: docker.io/library/postgres:18-trixie
   port: 5432
+  uid: 999
+  gid: 999
   nomad_job_path: /etc/nomad.d/jobs/postgres.nomad
   nomad_namespace: data
   cpu: 500
