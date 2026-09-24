@@ -31,7 +31,6 @@
       {{ forgejo_runner_config.nomad_job_path }}
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
-    NOMAD_SKIP_VERIFY: "true"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   register: forgejo_runner_nomad_job
   changed_when: >
@@ -45,7 +44,6 @@
       forgejo-runner
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
-    NOMAD_SKIP_VERIFY: "true"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
   register: forgejo_runner_status
   changed_when: false

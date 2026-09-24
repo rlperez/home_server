@@ -40,6 +40,12 @@ job "forgejo-runner" {
         read_only   = false
       }
 
+      volume_mount {
+        volume      = "podman-socket"
+        destination = "/run/user/1000/podman/podman.sock"
+        read_only   = false
+      }
+
       resources {
         cpu    = {{ forgejo_runner_config.resources.cpu }}
         memory = {{ forgejo_runner_config.resources.memory }}
