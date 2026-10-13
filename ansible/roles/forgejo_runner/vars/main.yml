@@ -15,7 +15,7 @@ forgejo_runner_config:
   uid: 1000
   gid: 1000
 
-  podman_socket: "/run/user/1000/podman/podman.sock"
+  podman_socket: "/run/podman/podman.sock"
 
   resources:
     cpu: 1000
