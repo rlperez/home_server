@@ -1,7 +1,7 @@
 ---
 - name: Create Forgejo Runner data directory
   ansible.builtin.file:
-    path: "{{ forgejo_runner_config.data_dir }}"
+    path: "{{ forgejo_runner_config.data_dir }}/data"
     state: directory
     owner: "{{ forgejo_runner_config.uid }}"
     group: "{{ forgejo_runner_config.gid }}"

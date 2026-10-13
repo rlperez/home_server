@@ -25,9 +25,8 @@ job "forgejo-runner" {
           "-c",
           "/data/config.yml"
         ]
-
         volumes = [
-          "{{ forgejo_runner_config.data_dir }}/data:/data:Z",
+          "{{ forgejo_runner_config.data_dir }}:/data:Z",
           "/run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock",
         ]
       }
