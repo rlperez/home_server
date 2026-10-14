@@ -22,6 +22,9 @@ forgejo_runner_config:
     memory: 2048
 
   labels:
-    - "node:docker://node:22-bookworm"
-    - "clojure:docker://clojure:temurin-21-tools-deps"
-    - "elixir:docker://elixir:1.18-otp-28"
+    - "bun:docker://oven/bun:1"
+    - "clojure:docker://clojure:temurin-25-tools-deps-trixie"
+    - "docker:docker://debian:trixie"
+    - "elixir:docker://elixir:1.20-otp-29"
+    - "node:docker://node:24-trixie"
+    - "nix:docker://nixos/nix:latest"
