@@ -23,11 +23,14 @@ job "forgejo-runner" {
         args = [
           "daemon",
           "-c",
-          "/data/config.yml"
+          "/data/config.yml",
         ]
+
+        userns = "keep-id"
         volumes = [
           "{{ forgejo_runner_config.data_dir }}:/data:Z",
-          "/run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock",
+          "{{ forgejo_runner_config.data_dir }}/certs/caddy-local-root.crt:/usr/local/share/ca-certificates/caddy-local-root.crt:ro",
+          "{{ forgejo_runner_config.podman_socket }}:{{forgejo_runner_config.podman_socket}}",
         ]
       }
 
