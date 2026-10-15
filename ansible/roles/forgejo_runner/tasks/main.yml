@@ -1,11 +1,14 @@
 ---
-- name: Create Forgejo Runner data directory
+- name: Create Forgejo Runner directories
   ansible.builtin.file:
-    path: "{{ forgejo_runner_config.data_dir }}/data/cache"
+    path: "{{ item }}"
     state: directory
     owner: "{{ forgejo_runner_config.uid }}"
     group: "{{ forgejo_runner_config.gid }}"
     mode: "0755"
+  loop:
+    - "{{ forgejo_runner_config.data_dir }}/data/cache"
+    - "{{ forgejo_runner_config.data_dir }}/certs"
 
 - name: Create Forgejo Runner config
   ansible.builtin.template:

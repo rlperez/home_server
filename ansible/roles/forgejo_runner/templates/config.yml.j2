@@ -39,8 +39,8 @@ cache:
 server:
   connections:
     forgejo:
-      url: "{{forgejo_runner_config.instance}}"
-      uuid: "{{secrets.forgejo.runner.uuid}}"
-      token: "{{secrets.forgejo.runner.token}}"
+      url: "{{ forgejo_runner_config.instance }}"
+      uuid: "{{ secrets.forgejo.runner.uuid }}"
+      token: "{{ secrets.forgejo.runner.token }}"
       token_file: ""
       insecure: false
