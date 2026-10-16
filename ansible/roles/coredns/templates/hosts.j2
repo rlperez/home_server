@@ -1,5 +1,0 @@
-# roles/coredns/templates/hosts.j2
-127.0.0.1 localhost
-{% for line in coredns_config.hosts_records %}
-{{ line }}
-{% endfor %}
