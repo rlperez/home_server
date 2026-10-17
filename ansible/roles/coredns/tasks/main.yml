@@ -95,6 +95,7 @@
     conn_name: "{{ coredns_active_conn.stdout }}"
     dns4:
       - 127.0.0.1
+      - "{{ ansible_default_ipv4.address }}"
     dns4_ignore_auto: true
     state: present
   register: coredns_network_dns
