@@ -3,23 +3,40 @@ job "coredns" {
   type        = "system"
 
   group "dns" {
+    update {
+      max_parallel      = 1
+      health_check      = "checks"
+      min_healthy_time  = "10s"
+      healthy_deadline  = "5m"
+      progress_deadline = "10m"
+    }
+
     network {
       mode = "host"
-      port "dns" { static = 53 }
-      port "health" { static = 8080 }
-      port "ready" { static = 8181 }
+
+      port "dns" {
+        static = 53
+      }
+
+      port "health" {
+        static = 8080
+      }
+
+      port "ready" {
+        static = 8181
+      }
     }
 
     service {
-      name = "coredns"
-      port = "dns"
-      tags = ["dns", "infra"]
+      name         = "coredns"
+      port         = "dns"
       address_mode = "host"
+      tags         = ["dns", "infra"]
 
       check {
         name     = "tcp-53"
         type     = "tcp"
-        port     = "53"
+        port     = "dns"
         interval = "10s"
         timeout  = "2s"
       }
@@ -49,23 +66,29 @@ job "coredns" {
       config {
         image        = "{{ coredns_config.image }}"
         network_mode = "host"
-        args         = ["-conf", "/etc/coredns/Corefile"]
-        cap_add      = ["NET_BIND_SERVICE"]
+
+        args = [
+          "-conf",
+          "/etc/coredns/Corefile"
+        ]
+
+        cap_add = [
+          "NET_BIND_SERVICE"
+        ]
 
         volumes = [
-          "{{ coredns_config.path }}/Corefile:/etc/coredns/Corefile:ro,Z",
-          "/opt/nomad/jobs/coredns/data:/opt/nomad/jobs/coredns/data",
-          "{{ coredns_config.path }}/home.arpa.db:/etc/coredns/home.arpa.db"
+          "{{ coredns_config.data_dir }}/Corefile:/etc/coredns/Corefile:ro,Z",
+          "{{ coredns_config.data_dir }}/home.arpa.db:/etc/coredns/home.arpa.db:ro,Z"
         ]
       }
 
       env {
-        GOMEMLIMIT = "{{ coredns_config.go_mem_limit | default('200MiB') }}"
+        GOMEMLIMIT = "{{ coredns_config.go_mem_limit }}"
       }
 
       resources {
-        cpu    = {{ coredns_config.cpu | default(100) }}
-        memory = {{ coredns_config.memory | default(256) }}
+        cpu    = {{ coredns_config.cpu }}
+        memory = {{ coredns_config.memory }}
       }
     }
   }

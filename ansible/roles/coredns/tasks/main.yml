@@ -1,5 +1,5 @@
 ---
-- name: Create directories
+- name: Create CoreDNS directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -7,69 +7,66 @@
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0755"
   loop:
-    - "{{ coredns_config.path }}"
+    - "{{ coredns_config.data_dir }}"
     - "{{ coredns_config.nomad_job_path | dirname }}"
 
-- name: Disable systemd-resolved stub listener (free port 53 FIRST)
+- name: Get current active connection name
+  ansible.builtin.command:
+    cmd: >
+      nmcli -g GENERAL.CONNECTION device show
+      {{ ansible_default_ipv4.interface }}
+  register: coredns_active_conn
+  changed_when: false
+
+- name: Disable systemd-resolved stub listener
   ansible.builtin.copy:
     dest: /etc/systemd/resolved.conf.d/00-no-stub.conf
+    owner: root
+    group: root
     mode: "0644"
     content: |
       [Resolve]
       DNSStubListener=no
+  register: coredns_resolved_stub
 
 - name: Configure systemd-resolved to use CoreDNS
   ansible.builtin.copy:
     dest: /etc/systemd/resolved.conf.d/10-coredns.conf
+    owner: root
+    group: root
     mode: "0644"
     content: |
       [Resolve]
       DNS=127.0.0.1
       FallbackDNS=
-  register: resolved_config
+  register: coredns_resolved_dns
 
-- name: Ensure NetworkManager does not use DHCP-provided DNS
-  community.general.nmcli:
-    conn_name: "{{ active_conn.stdout }}"
-    type: wifi
-    dns4:
-      - 127.0.0.1
-    dns4_ignore_auto: true
-    state: present
-  register: network_dns_config
-
-- name: Ensure resolv.conf is managed by resolved
+- name: Ensure resolv.conf is managed by systemd-resolved
   ansible.builtin.file:
     src: /run/systemd/resolve/resolv.conf
     dest: /etc/resolv.conf
     state: link
     force: true
 
-- name: Restart systemd-resolved (apply config once)
-  ansible.builtin.systemd:
-    name: systemd-resolved
-    state: restarted
-    enabled: true
-
 - name: Render CoreDNS Corefile
   ansible.builtin.template:
     src: "{{ role_path }}/templates/Corefile.j2"
-    dest: "{{ coredns_config.path }}/Corefile"
+    dest: "{{ coredns_config.data_dir }}/Corefile"
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
-  register: coredns_config
+  register: coredns_corefile
 
 - name: Render CoreDNS zone file
   ansible.builtin.template:
     src: "{{ role_path }}/templates/home.arpa.db.j2"
-    dest: "{{ coredns_config.path }}/home.arpa.db"
+    dest: "{{ coredns_config.data_dir }}/home.arpa.db"
     owner: "{{ nomad_server.nomad.user.name }}"
     group: "{{ nomad_server.nomad.user.group }}"
     mode: "0644"
-  register: coredns_zone_config
+  register: coredns_zone
 
-- name: Render Nomad job file
+- name: Render CoreDNS Nomad job
   ansible.builtin.template:
     src: "{{ role_path }}/templates/coredns.nomad.j2"
     dest: "{{ coredns_config.nomad_job_path }}"
@@ -79,8 +76,9 @@
   register: coredns_job
 
 - name: Check if firewalld is running
-  ansible.builtin.command: firewall-cmd --state
-  register: firewalld_state
+  ansible.builtin.command:
+    cmd: firewall-cmd --state
+  register: coredns_firewalld_state
   changed_when: false
   failed_when: false
 
@@ -88,99 +86,108 @@
   ansible.posix.firewalld:
     service: dns
     permanent: true
-    state: enabled
     immediate: true
-  when: firewalld_state.stdout == "running"
+    state: enabled
+  when: coredns_firewalld_state.stdout == "running"
 
-- name: Get current active connection name for interface {{ ansible_default_ipv4.interface }}
-  ansible.builtin.command: "nmcli -g GENERAL.CONNECTION device show {{ ansible_default_ipv4.interface }}"
-  register: active_conn
-  changed_when: false
-
-- name: Add IPv6 ULA address to network interface
+- name: Configure NetworkManager to use CoreDNS
   community.general.nmcli:
-    conn_name: "{{ active_conn.stdout }}"
-    type: wifi
-    ssid: "{{ active_conn.stdout }}"
-    ip6: "fd00:1::{{ '%02x' | format(ansible_facts.default_ipv4.address.split('.')[-1] | int) }}/64"
-    method6: manual
+    conn_name: "{{ coredns_active_conn.stdout }}"
+    dns4:
+      - 127.0.0.1
+    dns4_ignore_auto: true
     state: present
+  register: coredns_network_dns
+  when: coredns_active_conn.stdout | length > 0
 
 - name: Reapply NetworkManager DNS configuration
   ansible.builtin.command:
-    cmd: >
-      nmcli device reapply {{ ansible_default_ipv4.interface }}
-  when: network_dns_config.changed
+    cmd: "nmcli device reapply {{ ansible_default_ipv4.interface }}"
+  when: coredns_network_dns.changed | default(false)
   changed_when: true
 
-- name: Restart systemd-resolved after NetworkManager DNS configuration
-  ansible.builtin.systemd:
-    name: systemd-resolved
-    state: restarted
-  when: network_dns_config.changed
-
-- name: Check port 53 usage
-  ansible.builtin.command: ss -ltnup
-  register: port_check
-  changed_when: false
-
-- name: Display port 53 usage
-  ansible.builtin.debug:
-    var: port_check.stdout
-
-- name: Run CoreDNS Nomad job
-  ansible.builtin.command: nomad job run {{ coredns_config.nomad_job_path }}
+- name: Check CoreDNS Nomad job status
+  ansible.builtin.command:
+    cmd: nomad job status -json coredns
   environment:
     NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
     NOMAD_SKIP_VERIFY: "true"
     NOMAD_TOKEN: "{{ secrets.nomad.token }}"
-  register: nomad_run
-  changed_when: true
-  when: coredns_config.changed or coredns_zone_config.changed or coredns_job.changed
+  register: coredns_job_status
+  changed_when: false
+  failed_when: false
 
-- name: Wait for CoreDNS TCP
-  wait_for:
+- name: Determine whether CoreDNS needs to be deployed
+  ansible.builtin.set_fact:
+    coredns_deploy_required: >-
+      {{
+        coredns_corefile.changed
+        or coredns_zone.changed
+        or coredns_job.changed
+        or coredns_job_status.rc != 0
+        or (
+          coredns_job_status.rc == 0
+          and (
+            (coredns_job_status.stdout | from_json)[0].Summary.Summary.dns.Running | int == 0
+          )
+        )
+      }}
+
+- name: Deploy CoreDNS Nomad job
+  ansible.builtin.command:
+    cmd: "nomad job run {{ coredns_config.nomad_job_path }}"
+  environment:
+    NOMAD_ADDR: "{{ nomad_server.nomad.addr }}"
+    NOMAD_SKIP_VERIFY: "true"
+    NOMAD_TOKEN: "{{ secrets.nomad.token }}"
+  register: coredns_nomad_run
+  changed_when: true
+  when: coredns_deploy_required
+
+- name: Wait for CoreDNS TCP port
+  ansible.builtin.wait_for:
     host: 127.0.0.1
     port: 53
+    state: started
     timeout: 60
 
-- name: Wait for DNS to actually respond
-  command: dig @127.0.0.1 home.arpa
-  register: dns_check
-  retries: 10
-  delay: 3
-  until: dns_check.rc == 0
-
-- name: Wait for CoreDNS home.arpa resolution
+- name: Verify CoreDNS resolves home.arpa
   ansible.builtin.command:
-    cmd: >
-      dig @127.0.0.1 home.arpa
-  register: dns_check
+    cmd: dig @127.0.0.1 home.arpa
+  register: coredns_homearpa_check
   retries: 10
   delay: 3
-  until: dns_check.rc == 0
+  until: coredns_homearpa_check.rc == 0
   changed_when: false
 
-- name: Wait for CoreDNS Consul resolution
+- name: Verify CoreDNS resolves Consul services
   ansible.builtin.command:
-    cmd: >
-      dig @127.0.0.1 postgres.service.consul
-  register: consul_dns_check
+    cmd: dig @127.0.0.1 postgres.service.consul
+  register: coredns_consul_check
   retries: 10
   delay: 3
   until:
-    - consul_dns_check.rc == 0
-    - "'192.168.0.168' in consul_dns_check.stdout"
+    - coredns_consul_check.rc == 0
+    - "'192.168.0.168' in coredns_consul_check.stdout"
   changed_when: false
+
+- name: Restart systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
+    enabled: true
+  when:
+    - coredns_resolved_stub.changed
+      or coredns_resolved_dns.changed
+      or coredns_network_dns.changed | default(false)
 
 - name: Verify systemd-resolved resolves Consul services
   ansible.builtin.command:
-    cmd: >
-      resolvectl query postgres.service.consul
-  register: resolved_consul_check
+    cmd: resolvectl query postgres.service.consul
+  register: coredns_resolved_consul_check
   retries: 10
   delay: 3
   until:
-    - resolved_consul_check.rc == 0
-    - "'192.168.0.168' in resolved_consul_check.stdout"
+    - coredns_resolved_consul_check.rc == 0
+    - "'192.168.0.168' in coredns_resolved_consul_check.stdout"
   changed_when: false
