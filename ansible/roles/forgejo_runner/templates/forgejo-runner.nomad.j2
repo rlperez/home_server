@@ -23,39 +23,28 @@ job "forgejo-runner" {
         args = [
           "daemon",
           "-c",
-          "/data/config.yml"
+          "/data/config.yml",
         ]
 
-        user = "{{ forgejo_runner_config.uid }}"
+        userns = "keep-id"
+        volumes = [
+          "{{ forgejo_runner_config.data_dir }}:/data:Z",
+          "{{ forgejo_runner_config.data_dir }}/certs/caddy-local-root.crt:/usr/local/share/ca-certificates/caddy-local-root.crt:ro",
+          "{{ forgejo_runner_config.podman_socket }}:{{forgejo_runner_config.podman_socket}}",
+        ]
       }
+
+      user = "{{ forgejo_runner_config.uid }}"
 
       env {
         HOME            = "/data"
         XDG_RUNTIME_DIR = "/run/user/1000"
       }
 
-      volume_mount {
-        volume      = "runner-data"
-        destination = "/data"
-        read_only   = false
-      }
-
       resources {
         cpu    = {{ forgejo_runner_config.resources.cpu }}
         memory = {{ forgejo_runner_config.resources.memory }}
       }
-    }
-
-    volume "runner-data" {
-      type      = "host"
-      source    = "forgejo-runner"
-      read_only = false
-    }
-
-    volume "podman-socket" {
-      type      = "host"
-      source    = "podman-socket"
-      read_only = false
     }
   }
 }
