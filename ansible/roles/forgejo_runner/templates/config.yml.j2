@@ -6,23 +6,24 @@ runner:
   file: /data/.runner
   capacity: 1
   timeout: 3h
+  shutdown_timeout: 3h
+  fetch_interval: 5s
+  labels:
+{% for label in forgejo_runner_config.labels %}
+    - "{{ label }}"
+{% endfor %}
 
 container:
   network: ""
   enable_ipv6: false
   privileged: false
-
-  docker_host: unix:///run/user/1000/podman/podman.sock
-
+  docker_host: unix://{{forgejo_runner_config.podman_socket}}
   options: ""
-
   workdir_parent: /workspace
-
-  valid_volumes:
-    - "**"
-
   force_pull: false
   force_rebuild: false
+  valid_volumes:
+    - "**"
 
 host:
   workdir_parent: /data/workspace
@@ -30,11 +31,16 @@ host:
 cache:
   enabled: true
   dir: /data/cache
-
   host: ""
-
   port: 0
-
   external_server: ""
-
   external_server_protocol: http
+
+server:
+  connections:
+    forgejo:
+      url: "{{ forgejo_runner_config.instance }}"
+      uuid: "{{ secrets.forgejo.runner.uuid }}"
+      token: "{{ secrets.forgejo.runner.token }}"
+      token_file: ""
+      insecure: false

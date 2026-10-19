@@ -2,7 +2,7 @@
 forgejo_config:
   datacenters:
     - homelab
-  image: "codeberg.org/forgejo/forgejo:16-rootless"
+  image: "codeberg.org/forgejo/forgejo:17-rootless"
   nomad_job_path: "/etc/nomad.d/jobs/forgejo.nomad"
   nomad_namespace: "services"
   uid: 1000
