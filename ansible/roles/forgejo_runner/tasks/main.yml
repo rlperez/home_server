@@ -26,6 +26,28 @@
     group: "{{ nomad_server.nomad.user.name }}"
     mode: "0644"
 
+- name: Build Forgejo Runner CA bundle
+  become: true
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+
+      cat \
+        /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+        "{{ nomad_server.caddy.root_cert_path }}" \
+        > "{{ forgejo_runner_config.ca_bundle_path }}.tmp"
+
+      chown "{{ forgejo_runner_config.uid }}:{{ forgejo_runner_config.gid }}" \
+        "{{ forgejo_runner_config.ca_bundle_path }}.tmp"
+
+      chmod 0644 "{{ forgejo_runner_config.ca_bundle_path }}.tmp"
+
+      mv \
+        "{{ forgejo_runner_config.ca_bundle_path }}.tmp" \
+        "{{ forgejo_runner_config.ca_bundle_path }}"
+  register: forgejo_runner_ca_bundle
+  changed_when: true
+
 - name: Run Forgejo Runner Nomad job
   ansible.builtin.command:
     cmd: >

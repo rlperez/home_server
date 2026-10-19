@@ -49,6 +49,7 @@ job "forgejo-runner" {
       env {
         HOME            = "/data"
         XDG_RUNTIME_DIR = "/run/user/{{ forgejo_runner_config.uid }}"
+        SSL_CERT_FILE   = "/data/certs/ca-bundle.pem"
       }
 
       resources {

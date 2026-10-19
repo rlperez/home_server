@@ -1,6 +1,8 @@
 ---
 nomad_server:
   timezone: "America/New_York"
+  caddy:
+    root_cert_path: /opt/caddy/data/caddy/pki/authorities/local/root.crt
   consul:
     dns_addr: consul.service.consul:8600
   vault:
@@ -11,7 +13,8 @@ nomad_server:
       role: "nomad-cluster"
       key_file: "/etc/nomad.d/certs/nomad-key.pem"
   nomad:
-    addr: "https://nomad.service.consul:4646"
+    # home-server-1
+    addr: "https://192.168.0.168:4646"
     acl:
       bootstrap_token_file: "/etc/nomad.d/nomad-management-token.txt"
     user:

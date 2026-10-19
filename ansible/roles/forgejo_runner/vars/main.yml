@@ -11,7 +11,7 @@ forgejo_runner_config:
   nomad_job_path: "/etc/nomad.d/jobs/forgejo-runner.nomad"
   data_dir: "/opt/forgejo-runner"
   config_path: "/opt/forgejo-runner/config.yml"
-
+  ca_bundle_path: /opt/forgejo-runner/certs/ca-bundle.pem
   uid: 1000
   gid: 1000
 
