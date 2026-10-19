@@ -24,9 +24,9 @@ consul:53 {
     loop
     loadbalance
 
-    forward node.consul. {{ nomad_server.consul.dns_addr }}
-    forward service.consul. {{ nomad_server.consul.dns_addr }}
-    forward consul. {{ nomad_server.consul.dns_addr }}
+    forward node.consul. 127.0.0.1:8600
+    forward service.consul. 127.0.0.1:8600
+    forward consul. 127.0.0.1:8600
 
     cache {
         success 3000 3600 5

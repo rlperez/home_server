@@ -2,19 +2,24 @@
 coredns_config:
   datacenters:
     - homelab
+
   nomad_job_path: /etc/nomad.d/jobs/coredns.nomad
-  path: /opt/coredns
-  listen_ip: "{{ ansible_default_ipv4.address }}"
-  listen_ipv6: "::"
+  data_dir: /opt/coredns
+
   cpu: 100
   memory: 256
-  image: docker.io/coredns/coredns:1.14.3
+  image: docker.io/coredns/coredns:1.14.7
   go_mem_limit: "200MiB"
+
   upstream_dns:
-    # Primary: Quad9 (Malware Blocked)
+    # Quad9
     - 2620:fe::fe
     - 9.9.9.9
-    # Secondary: Cloudflare (Malware/Phishing Blocked)
+
+    # Cloudflare
     - 2606:4700:4700::1112
     - 1.1.1.2
-  hosts_records: ["192.168.0.1  router.home.arpa router", "192.168.0.168  home-server-1.home.arpa home-server-1"]
+
+  hosts_records:
+    - "192.168.0.1 router.home.arpa router"
+    - "192.168.0.168 home-server-1.home.arpa home-server-1"
