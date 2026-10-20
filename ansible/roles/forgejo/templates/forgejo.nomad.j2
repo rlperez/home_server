@@ -84,6 +84,7 @@ job "forgejo" {
         FORGEJO__service__ENABLE_NOTIFY_MAIL   = "{{ forgejo_config.service.enable_notify_mail | string | lower }}"
 
         FORGEJO__server__DOMAIN           = "{{ forgejo_config.server.domain }}"
+        FORGEJO__server__SSH_DOMAIN       = "{{ forgejo_config.server.domain }}"
         FORGEJO__server__ROOT_URL         = "{{ forgejo_config.server.root_url }}"
         FORGEJO__server__PROTOCOL         = "http"
         FORGEJO__server__HTTP_ADDR        = "{{ forgejo_config.server.http.address }}"
