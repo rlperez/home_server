@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Managed by Ansible. Do not edit by hand.
+
+set -euo pipefail
+
+STAGING="{{ maintenance_config.backup.staging_dir }}/dumps"
+rm -rf "$STAGING"
+mkdir -p "$STAGING"
+trap 'rm -rf "$STAGING"' EXIT
+
+echo "==> Dumping service state"
+{% for dump in maintenance_config.backup.dumps %}
+echo "--> {{ dump.name }}"
+{{ dump.command }}
+{% endfor %}
+
+echo "==> Backing up dumps"
+restic backup --tag dumps "$STAGING"
+{% if maintenance_config.backup.paths %}
+
+echo "==> Backing up paths"
+restic backup --tag files {{ maintenance_config.backup.backup.paths | map('quote') | join(' ') }}
+{% endif %}
+
+echo "==> Applying retention"
+restic forget --prune \
+  --keep-daily {{ maintenance_config.backup.keep_daily }} \
+  --keep-weekly {{ maintenance_config.backup.keep_weekly }} \
+  --keep-monthly {{ maintenance_config.backup.keep_monthly }}
+
+echo "==> Backup complete"

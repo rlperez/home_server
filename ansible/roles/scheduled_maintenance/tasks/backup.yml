@@ -1,0 +1,84 @@
+---
+- name: Create backup directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: /etc/homelab-backup, mode: "0700" }
+    - { path: "{{ maintenance_config.backup.staging_dir }}", mode: "0700" }
+
+- name: Deploy rclone config for Mega S4
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: /etc/homelab-backup/rclone.conf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy restic repository password
+  ansible.builtin.copy:
+    content: "{{ secrets.backup.restic.password }}\n"
+    dest: /etc/homelab-backup/restic-password
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy backup environment file
+  ansible.builtin.template:
+    src: homelab-backup.env.j2
+    dest: /etc/homelab-backup/env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Deploy backup script
+  ansible.builtin.template:
+    src: homelab-backup.sh.j2
+    dest: /usr/local/sbin/homelab-backup.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy backup service
+  ansible.builtin.template:
+    src: homelab-backup.service.j2
+    dest: /etc/systemd/system/homelab-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy backup timer
+  ansible.builtin.template:
+    src: homelab-backup.timer.j2
+    dest: /etc/systemd/system/homelab-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Check whether the restic repository already exists
+  ansible.builtin.command: restic cat config
+  environment: "{{ maintenance_config.restic.env }}"
+  register: maintenance_restic_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Initialise restic repository on Mega S4
+  ansible.builtin.command: restic init
+  environment: "{{ maintenance_config.restic.env }}"
+  when: maintenance_restic_probe.rc != 0
+  no_log: true
+
+- name: Enable backup timer
+  ansible.builtin.systemd_service:
+    name: homelab-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

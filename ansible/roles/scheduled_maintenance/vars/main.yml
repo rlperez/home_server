@@ -1,0 +1,24 @@
+---
+maintenance_config:
+  backup:
+    enabled: true
+    oncalender: "*-*-* 04:30:00"
+    random_delay: 20min
+    paths: []
+    dumps: []
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 3
+    staging_dir: /var/lib/homelab-backup
+
+  s3:
+    remote: megas4
+    endoint: s3.ca-montreal-1.megas4.com
+    bucket: home-server-backups
+    path: "{{ maintenance_config.s3.bucket }}/{{ inventory_hostname }}"
+
+  restic:
+    env:
+      RESTIC_REPOSITORY: "rclone:{{ maintenance_config.s3.remote }}:{{ maintenance_config.s3.path }}"
+      RESTIC_PASSWORD_FILE: /etc/homelab-backup/restic-password
+      RCLONE_CONFIG: /etc/homelab-backup/rclone.conf

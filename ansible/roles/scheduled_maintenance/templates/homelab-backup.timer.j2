@@ -1,0 +1,10 @@
+[Unit]
+Description=Scheduled Mega S4 backup
+
+[Timer]
+OnCalendar={{ maintenance_config.backup.oncalendar }}
+RandomizedDelaySec={{ maintenance_config.backup.random_delay }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

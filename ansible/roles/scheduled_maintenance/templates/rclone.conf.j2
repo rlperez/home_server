@@ -1,0 +1,8 @@
+[{{ maintenance_config.s3.remote }}]
+type = s3
+provider = Other
+env_auth = false
+access_key_id = {{ secrets.backup.s3.access_key_id }}
+secret_access_key = {{ secrets.backup.s3.secret_access_key }}
+endpoint = {{ maintenance_s3_endpoint }}
+region = us-east-1

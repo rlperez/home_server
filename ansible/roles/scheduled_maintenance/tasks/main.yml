@@ -1,0 +1,12 @@
+---
+- name: Install restic and rclone
+  ansible.builtin.dnf:
+    name:
+      - restic
+      - rclone
+    state: present
+  when: maintenance_backup_enabled
+
+- name: Configure Mega S4 backups
+  ansible.builtin.include_tasks: backup.yml
+  when: maintenance_backup_enabled

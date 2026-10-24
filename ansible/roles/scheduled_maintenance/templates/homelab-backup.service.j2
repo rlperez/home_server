@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up Vault, Consul, Nomad state and paths to Mega S4
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/homelab-backup/env
+ExecStart=/usr/local/sbin/homelab-backup.sh
+Nice=10
+IOSchedulingClass=idle
