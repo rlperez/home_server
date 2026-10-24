@@ -1,5 +1,5 @@
 ---
-- name: Configure scheduled package updates and Mega S4 backups
+- name: Configure Mega S4 backups
   hosts: nomad_servers
   become: true
   roles:
